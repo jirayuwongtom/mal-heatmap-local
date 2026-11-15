@@ -1,12 +1,15 @@
-# MAL Contributions — TiMEZ4I3eth
+# MAL Contributions — TiMEZ4I3eth (JavaScript Edition)
 
-โปรเจกต์ Contribution Calendar สไตล์ GitHub สำหรับ MyAnimeList `TiMEZ4I3eth` โดยเน้นให้ใช้งานได้ฟรีผ่าน GitHub Actions และ GitHub Pages
+โปรเจกต์ Contribution Calendar สไตล์ GitHub สำหรับ MyAnimeList `TiMEZ4I3eth` เขียนระบบของโปรเจกต์ด้วย **JavaScript (Node.js)** ทั้งหมด และใช้งานฟรีผ่าน GitHub Actions + GitHub Pages
 
 - **Toki** เปิด Recent History สาธารณะของ MAL เป็น JSON (ไม่ใช่ API ทางการ)
 - **GitHub Actions** เรียก Toki ชั่วคราวใน Runner แล้วดึงประวัติทุกชั่วโมง
+- **Node.js** ดึงข้อมูล, ตรวจรายการซ้ำ, บันทึกยอดรายวัน, สร้าง PNG และเว็บไซต์
 - **Git repository** เก็บยอดรายวันและ Fingerprint ของรายการที่นำเข้าแล้ว เพื่อไม่ให้นับซ้ำ
 - **GitHub Pages** เผยแพร่หน้า Calendar และ `heatmap.png`
-- ไม่จำเป็นต้องใช้ VPS, Turso, MAL Client ID หรือรหัสผ่าน MAL
+- ไม่ต้องใช้ Python, VPS, Turso, MAL Client ID หรือรหัสผ่าน MAL
+
+> Toki เป็นโปรแกรม Go ของบุคคลที่สามซึ่ง Workflow Build และเปิดเป็นบริการชั่วคราวใน GitHub Runner เท่านั้น ส่วนโค้ดที่ดูแลโปรเจกต์นี้ทั้งหมดอยู่ใน JavaScript ไม่มี Python และไม่มีไลบรารี npm ภายนอก
 
 ## ทำไมต้องใช้ Toki แทน MAL API v2?
 
@@ -29,7 +32,7 @@ MAL ระบุว่าประวัติสาธารณะที่ผ�
 
 ## ธีมสี
 
-Heatmap ใช้โทนน้ำเงินเข้มไล่ไปฟ้าแทนสีเขียว ทั้งในไฟล์ PNG และหน้าเว็บไซต์:
+Heatmap ใช้โทนน้ำเงินเข้มไล่ไปฟ้า ทั้งในไฟล์ PNG และหน้าเว็บไซต์:
 
 - ไม่มี Activity: `#161b22`
 - ระดับ 1: `#172f50`
@@ -42,17 +45,39 @@ Heatmap ใช้โทนน้ำเงินเข้มไล่ไปฟ้
 - 1 Contribution คือ 1 Episode ที่เพิ่ม หรือ 1 Chapter ที่เพิ่ม ตามค่า `increment` ใน Recent History ของ MAL
 - รวม Anime และ Manga ใน Calendar เดียวกัน แต่แสดงยอดแยกกันในหน้าเว็บ
 - วันที่ใช้มาจากประวัติ MAL และแปลงเป็นเขตเวลา `Asia/Bangkok`
-- ใช้ Fingerprint แบบ Hash เพื่อจำว่าประวัติแต่ละรายการถูกนำเข้าแล้ว โดยไม่เผยชื่อ Anime/Manga ใน `data/state.json`
+- ใช้ Fingerprint แบบ SHA-256 เพื่อจำว่าประวัติแต่ละรายการถูกนำเข้าแล้ว โดยไม่เผยชื่อ Anime/Manga ใน `data/state.json`
 - กิจกรรมซ้ำที่มีรายละเอียดเหมือนกันในคำตอบเดียวกันจะยังถูกนับแยกกันด้วย Duplicate Index
+
+## โครงสร้างไฟล์
+
+```text
+.
+├── .github/workflows/heatmap.yml
+├── data/state.json
+├── src/
+│   ├── collect.js
+│   ├── tracker.js
+│   ├── render.js
+│   └── run.js
+├── test/
+│   ├── collect.test.js
+│   ├── tracker.test.js
+│   └── render.test.js
+├── package.json
+└── README.md
+```
 
 ## ติดตั้ง
 
-### 1. ใช้ Repository ที่มีอยู่แล้ว
+### 1. อัปเดต Repository เดิม
 
 1. Repository คือ [`jirayuwongtom/mal-heatmap-local`](https://github.com/jirayuwongtom/mal-heatmap-local)
-2. ตั้งเป็น **Public** เพื่อใช้ GitHub Pages บน GitHub Free
-3. หากนำไฟล์จาก Patch ไปแทนที่ ให้คง `data/state.json` เดิมไว้ เพื่อไม่ให้ประวัติที่เก็บสะสมแล้วหายไป
-4. ใช้ Branch ชื่อ `main`
+2. ดาวน์โหลด ZIP ฉบับ JavaScript นี้ แล้วแตกไฟล์
+3. อัปโหลดไฟล์และโฟลเดอร์ทั้งหมดเข้า Repository โดยใช้ Branch `main`
+4. **อย่าลบหรือแทนที่ `data/state.json` ด้วยไฟล์ว่าง** ไฟล์ State ใน ZIP นี้ถูกคัดลอกจากไฟล์แนบล่าสุดของคุณและคงประวัติที่มีอยู่ไว้แล้ว
+5. ลบไฟล์ Python เดิม (`scripts/*.py`, `tests/*.py`, `requirements.txt`) ออกจาก Repository หาก GitHub ไม่ลบไฟล์เดิมให้อัตโนมัติเมื่ออัปโหลดทับ
+
+> ก่อนอัปโหลด แนะนำดาวน์โหลด `data/state.json` จาก Repository เก็บสำรองไว้อีกชุดหนึ่ง
 
 ### 2. เปิด GitHub Pages
 
@@ -60,20 +85,32 @@ Heatmap ใช้โทนน้ำเงินเข้มไล่ไปฟ้
 
 **Settings → Pages → Build and deployment → Source → GitHub Actions**
 
-### 3. สั่งนำเข้าประวัติย้อนหลังครั้งแรก
+### 3. สั่งทำงาน
 
 1. เปิดแท็บ **Actions**
 2. เลือก Workflow ชื่อ **Build MAL Contributions**
 3. กด **Run workflow**
-4. รอให้ Job ทำงานจบและ Deploy สำเร็จ
+4. รอให้ Job ทดสอบ JavaScript, Build Toki, ดึงประวัติ, สร้างภาพ และ Deploy จบ
 
-ครั้งแรก Workflow จะ Build Toki ใน Runner, เรียก Recent History ของ Anime และ Manga, นำเข้ารายการที่ MAL ยังเปิดเผย, สร้าง Heatmap และ Commit `data/state.json` กลับเข้า Repository
-
-หลังจากนั้น Scheduled Workflow จะทำงานทุกชั่วโมงโดยอัตโนมัติ คุณสามารถกด Run workflow เองหลังอัปเดต MAL ได้เช่นกัน
+หลังจากนั้น Scheduled Workflow จะทำงานทุกชั่วโมง คุณสามารถกด Run workflow เองหลังอัปเดต MAL ได้เช่นกัน
 
 ### 4. ไม่มี API Secret ให้ตั้งค่า
 
 Toki อ่านข้อมูลสาธารณะ จึงไม่จำเป็นต้องใส่ MAL Client ID, MAL Client Secret, MAL Password, Cookie หรือ Token ลงใน GitHub Secrets
+
+## ทดสอบในเครื่อง
+
+ต้องมี Node.js 22 ขึ้นไป:
+
+```bash
+npm test
+```
+
+คำสั่งนี้รัน Unit Tests โดยไม่เรียก MAL จริง หากต้องการรันตัวเก็บข้อมูลจริง ต้องเปิด Toki ในเครื่องและตั้งค่า:
+
+```bash
+MAL_USERNAME=TiMEZ4I3eth TOKI_BASE_URL=http://127.0.0.1:3000 npm run build
+```
 
 ## URL หลัง Deploy
 
@@ -99,7 +136,7 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 
 - GitHub Pages แบบฟรีต้องใช้ Public Repository ดังนั้นไฟล์ใน Repository จะมองเห็นได้สาธารณะ
 - `data/state.json` เก็บยอดกิจกรรมรายวันและ Hash Fingerprints สำหรับกันการนับซ้ำ ไม่เก็บชื่อเรื่อง URL ของรายการ คะแนน ความเห็น หรือ Tags
-- หากเคยติดตั้ง Starter รุ่นก่อนหน้า ให้สำรอง `data/state.json` ก่อนอัปโหลดไฟล์รุ่นนี้ทับ เพราะรูปแบบ State เปลี่ยนจาก Snapshot Tracking เป็น History Event Tracking
+- รุ่นนี้คง `schema_version`, `seen_events`, `daily`, `first_import_at` และข้อมูลเดิมใน `data/state.json` โดยไม่รีเซ็ตประวัติ
 - `site/activity.json` ที่เผยแพร่บนเว็บไซต์มีเฉพาะวันที่และยอด Anime/Manga รายวัน
 - ห้ามเพิ่มรหัสผ่าน MAL, Cookie หรือ Token ลับใด ๆ ลง Repository
 
@@ -114,6 +151,7 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 ## แก้ปัญหาเบื้องต้น
 
 - **Workflow ล้มเหลวตอน Build Toki:** ตรวจสอบบันทึกขั้นตอน `Build Toki`; อาจเป็นการเปลี่ยนแปลง Go/Toki upstream
+- **JavaScript Test ไม่ผ่าน:** ดูชื่อ Test และข้อความ error ในขั้นตอน `Run JavaScript tests`
 - **Toki ตอบ HTTP 403:** MAL อาจปฏิเสธคำขอจาก GitHub Runner หรือโปรไฟล์/ประวัติไม่เปิดเป็นสาธารณะ
 - **Toki ตอบ HTTP 404:** ตรวจสอบ Username และการเข้าถึงหน้า Profile
 - **Toki ตอบ HTTP 429:** MAL จำกัดคำขอชั่วคราว ให้รอสักระยะแล้ว Run workflow ใหม่

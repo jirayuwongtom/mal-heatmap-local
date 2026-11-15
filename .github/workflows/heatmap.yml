@@ -35,14 +35,16 @@ jobs:
         with:
           persist-credentials: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
         with:
-          python-version: '3.12'
-          cache: pip
+          node-version: '26'
 
-      # Toki provides the public MAL Recent History endpoint that the official
-      # MAL API v2 does not expose. It runs only inside this temporary runner.
+      - name: Run JavaScript tests
+        run: npm test
+
+      # Toki provides the public MAL Recent History endpoint that official MAL API v2 does not expose.
+      # The Go binary is built and run only inside this temporary Actions runner.
       - name: Download Toki history adapter
         run: git clone --depth 1 https://github.com/nyawave/toki.git "$RUNNER_TEMP/toki"
 
@@ -71,14 +73,12 @@ jobs:
           cat "$RUNNER_TEMP/toki.log"
           exit 1
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
-
       - name: Backfill recent MAL history, update calendar, and render site
         env:
           MAL_USERNAME: TiMEZ4I3eth
           TOKI_BASE_URL: http://127.0.0.1:3000
-        run: python scripts/run.py
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npm run build
 
       - name: Commit updated tracker state
         run: |

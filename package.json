@@ -1,0 +1,15 @@
+{
+  "name": "mal-heatmap-local",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub-style MyAnimeList contribution calendar for TiMEZ4I3eth",
+  "scripts": {
+    "collect": "node src/run.js",
+    "test": "node --test",
+    "build": "node src/run.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
