@@ -34,9 +34,12 @@ test('writes valid PNG, activity JSON, and public HTML', async () => {
     const activity = JSON.parse(await fs.readFile(path.join(output, 'activity.json'), 'utf8'));
     const html = await fs.readFile(path.join(output, 'index.html'), 'utf8');
     assert.equal(activity.username, 'TiMEZ4I3eth');
-    assert.ok(html.includes('https://jirayuwongtom.github.io/mal-heatmap-local/heatmap.png'));
-    assert.ok(html.includes('--blue4:#58a6e7'));
-    assert.ok(html.includes('Copy BBCode'));
+    assert.ok(html.includes('<img src=\"heatmap.png\"'));
+    assert.ok(html.includes('background:#000'));
+    assert.ok(html.includes('width:min(880px,100%)'));
+    assert.ok(!html.includes('Contribution activity'));
+    assert.ok(!html.includes('contributions in last 365 days'));
+    assert.ok(!html.includes('class=\"stats\"'));
   } finally {
     await fs.rm(temp, { recursive: true, force: true });
   }
