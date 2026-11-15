@@ -1,0 +1,105 @@
+name: Build MAL Contributions
+
+on:
+  # Poll once an hour so MAL's short public-history window is captured promptly.
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'data/state.json'
+      - 'site/**'
+      - 'README.md'
+      - '.gitignore'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mal-heatmap-pages
+  cancel-in-progress: false
+
+jobs:
+  collect-build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      # Toki provides the public MAL Recent History endpoint that the official
+      # MAL API v2 does not expose. It runs only inside this temporary runner.
+      - name: Download Toki history adapter
+        run: git clone --depth 1 https://github.com/nyawave/toki.git "$RUNNER_TEMP/toki"
+
+      - name: Set up Go for Toki
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache: true
+          cache-dependency-path: ${{ runner.temp }}/toki/go.sum
+
+      - name: Build Toki
+        working-directory: ${{ runner.temp }}/toki
+        run: go build -trimpath -o "$RUNNER_TEMP/toki-server" ./cmd/toki
+
+      - name: Start temporary Toki server
+        run: |
+          HOST=127.0.0.1 PORT=3000 "$RUNNER_TEMP/toki-server" > "$RUNNER_TEMP/toki.log" 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/ > /dev/null; then
+              echo "Toki is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Toki failed to start. Server log:"
+          cat "$RUNNER_TEMP/toki.log"
+          exit 1
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Backfill recent MAL history, update calendar, and render site
+        env:
+          MAL_USERNAME: TiMEZ4I3eth
+          TOKI_BASE_URL: http://127.0.0.1:3000
+        run: python scripts/run.py
+
+      - name: Commit updated tracker state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update MAL contribution history [skip ci]"
+            git push
+          else
+            echo "No tracker state changes to commit."
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
