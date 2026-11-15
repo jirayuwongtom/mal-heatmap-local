@@ -1,7 +1,5 @@
 # MAL Contributions — TiMEZ4I3eth
 
-> Theme: dark UI with a MAL-inspired blue activity scale (no green). The same palette is used in the PNG and website.
-
 โปรเจกต์ Contribution Calendar สไตล์ GitHub สำหรับ MyAnimeList `TiMEZ4I3eth` โดยเน้นให้ใช้งานได้ฟรีผ่าน GitHub Actions และ GitHub Pages
 
 - **Toki** เปิด Recent History สาธารณะของ MAL เป็น JSON (ไม่ใช่ API ทางการ)
@@ -29,6 +27,16 @@ MAL ระบุว่าประวัติสาธารณะที่ผ�
 
 > หมายเหตุ: การนำเข้าครั้งแรกจะสำเร็จเท่าที่ Toki อ่านจากหน้า History สาธารณะได้จริง หาก MAL ปิดบังข้อมูลหรือป้องกันคำขอ Workflow จะหยุดโดยไม่บันทึกสถานะใหม่ เพื่อไม่ให้เกิดข้อมูลหายเงียบ ๆ
 
+## ธีมสี
+
+Heatmap ใช้โทนน้ำเงินเข้มไล่ไปฟ้าแทนสีเขียว ทั้งในไฟล์ PNG และหน้าเว็บไซต์:
+
+- ไม่มี Activity: `#161b22`
+- ระดับ 1: `#172f50`
+- ระดับ 2: `#214b78`
+- ระดับ 3: `#2f70ad`
+- ระดับ 4: `#58a6e7`
+
 ## วิธีนับ Contribution
 
 - 1 Contribution คือ 1 Episode ที่เพิ่ม หรือ 1 Chapter ที่เพิ่ม ตามค่า `increment` ใน Recent History ของ MAL
@@ -39,11 +47,11 @@ MAL ระบุว่าประวัติสาธารณะที่ผ�
 
 ## ติดตั้ง
 
-### 1. สร้าง Repository บน GitHub
+### 1. ใช้ Repository ที่มีอยู่แล้ว
 
-1. สร้าง Repository ใหม่ชื่อ `mal-heatmap`
+1. Repository คือ [`jirayuwongtom/mal-heatmap-local`](https://github.com/jirayuwongtom/mal-heatmap-local)
 2. ตั้งเป็น **Public** เพื่อใช้ GitHub Pages บน GitHub Free
-3. แตกไฟล์ ZIP แล้วอัปโหลดไฟล์และโฟลเดอร์ทั้งหมดไปไว้ที่ Root ของ Repository โดยต้องเก็บ `.github/workflows/` ไว้ด้วย
+3. หากนำไฟล์จาก Patch ไปแทนที่ ให้คง `data/state.json` เดิมไว้ เพื่อไม่ให้ประวัติที่เก็บสะสมแล้วหายไป
 4. ใช้ Branch ชื่อ `main`
 
 ### 2. เปิด GitHub Pages
@@ -69,20 +77,20 @@ Toki อ่านข้อมูลสาธารณะ จึงไม่จ�
 
 ## URL หลัง Deploy
 
-สมมติ GitHub username ของคุณคือ `YOUR-GITHUB-USERNAME` และ Repository ชื่อ `mal-heatmap`:
+สำหรับ Repository `jirayuwongtom/mal-heatmap-local`:
 
 เว็บไซต์:
 
-`https://YOUR-GITHUB-USERNAME.github.io/mal-heatmap/`
+`https://jirayuwongtom.github.io/mal-heatmap-local/`
 
 รูปภาพ:
 
-`https://YOUR-GITHUB-USERNAME.github.io/mal-heatmap/heatmap.png`
+`https://jirayuwongtom.github.io/mal-heatmap-local/heatmap.png`
 
 BBCode สำหรับใส่ใน MyAnimeList Profile:
 
 ```text
-[img]https://YOUR-GITHUB-USERNAME.github.io/mal-heatmap/heatmap.png[/img]
+[img]https://jirayuwongtom.github.io/mal-heatmap-local/heatmap.png[/img]
 ```
 
 หน้าเว็บไซต์จะแสดง BBCode ที่ใช้ URL ของ Repository จริงให้อัตโนมัติหลัง Deploy
@@ -99,7 +107,7 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 
 - Scheduled Workflow ตั้งไว้ทุกชั่วโมงที่นาที 17 ตามเวลา UTC (เช่น 00:17 UTC = 07:17 เวลาไทย) GitHub อาจเริ่มงานช้ากว่าเวลาที่กำหนดได้
 - Toki เป็น Unofficial Scraper และพึ่งพา HTML ของ MAL ถ้า MAL เปลี่ยนหน้าเว็บ, ปิดกั้น Runner หรือ Toki เปลี่ยนรูปแบบ response การดึงข้อมูลอาจล้มเหลว
-- Toki จะถูก Build ใหม่ทุกครั้งที่ Workflow ทำงาน โดยใช้ Go `1.26.3` ตามข้อกำหนดของ Toki ในปัจจุบัน
+- Toki จะถูก Build ใหม่ทุกครั้งที่ Workflow ทำงาน โดยใช้ Go `1.27.4` (Toki ต้องการ Go 1.26 ขึ้นไป)
 - Workflow ใช้ 2 History Requests ต่อรอบ (Anime และ Manga) และเว้นช่วงระหว่างคำขอ
 - Scheduled Workflow ใน Public Repository อาจถูกปิดอัตโนมัติเมื่อไม่มี Repository Activity เป็นเวลา 60 วัน หากหยุดทำงาน ให้เข้า Actions แล้วเปิดใช้งาน Workflow อีกครั้ง
 
@@ -127,16 +135,3 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 - Toki repository และวิธีรัน: <https://github.com/nyawave/toki>
 - Toki OpenAPI schema: <https://raw.githubusercontent.com/nyawave/toki/master/openapi.json>
 - คำอธิบายช่วงเวลาประวัติย้อนหลัง 3 สัปดาห์: <https://malheatmap.com/about>
-
-
-## เปลี่ยนสี Heatmap
-
-เวอร์ชันนี้ใช้โทนน้ำเงินแทนสีเขียว ทั้งในหน้าเว็บและไฟล์ PNG โดยไล่ระดับจากไม่มี activity ไปจนถึง activity สูงสุด:
-
-- ไม่มี activity: `#161b22`
-- ระดับ 1: `#172f50`
-- ระดับ 2: `#214b78`
-- ระดับ 3: `#2f70ad`
-- ระดับ 4: `#58a6e7`
-
-หากต้องการปรับสีเพิ่มเติม ให้แก้ `COLORS` ใน `scripts/render.py` และตัวแปร `--cell0` ถึง `--cell4` ใน CSS ภายในฟังก์ชัน `write_site()` ให้ใช้สีชุดเดียวกัน เพื่อให้ PNG และหน้าเว็บตรงกัน
