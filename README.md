@@ -1,5 +1,7 @@
 # MAL Contributions — TiMEZ4I3eth
 
+> Theme: dark UI with a MAL-inspired blue activity scale (no green). The same palette is used in the PNG and website.
+
 โปรเจกต์ Contribution Calendar สไตล์ GitHub สำหรับ MyAnimeList `TiMEZ4I3eth` โดยเน้นให้ใช้งานได้ฟรีผ่าน GitHub Actions และ GitHub Pages
 
 - **Toki** เปิด Recent History สาธารณะของ MAL เป็น JSON (ไม่ใช่ API ทางการ)
@@ -125,3 +127,16 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 - Toki repository และวิธีรัน: <https://github.com/nyawave/toki>
 - Toki OpenAPI schema: <https://raw.githubusercontent.com/nyawave/toki/master/openapi.json>
 - คำอธิบายช่วงเวลาประวัติย้อนหลัง 3 สัปดาห์: <https://malheatmap.com/about>
+
+
+## เปลี่ยนสี Heatmap
+
+เวอร์ชันนี้ใช้โทนน้ำเงินแทนสีเขียว ทั้งในหน้าเว็บและไฟล์ PNG โดยไล่ระดับจากไม่มี activity ไปจนถึง activity สูงสุด:
+
+- ไม่มี activity: `#161b22`
+- ระดับ 1: `#172f50`
+- ระดับ 2: `#214b78`
+- ระดับ 3: `#2f70ad`
+- ระดับ 4: `#58a6e7`
+
+หากต้องการปรับสีเพิ่มเติม ให้แก้ `COLORS` ใน `scripts/render.py` และตัวแปร `--cell0` ถึง `--cell4` ใน CSS ภายในฟังก์ชัน `write_site()` ให้ใช้สีชุดเดียวกัน เพื่อให้ PNG และหน้าเว็บตรงกัน
