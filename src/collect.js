@@ -112,16 +112,17 @@ export async function fetchUserHistory(
   );
 }
 
-/** Fetch Anime and Manga history. Fail the run if either request fails. */
+/**
+ * Fetch Anime history only. Manga is intentionally not collected: the calendar counts watched
+ * anime episodes. The `manga` key is kept (empty) so the shape stays compatible with the tracker.
+ */
 export async function collectRecentHistory(
   username,
   tokiBaseUrl = 'http://127.0.0.1:3000',
   fetchImpl = globalThis.fetch,
 ) {
   const anime = await fetchUserHistory(username, 'anime', tokiBaseUrl, fetchImpl);
-  await sleep(1000);
-  const manga = await fetchUserHistory(username, 'manga', tokiBaseUrl, fetchImpl);
-  return { anime, manga };
+  return { anime, manga: [] };
 }
 
 export { decodeHistoryPayload };

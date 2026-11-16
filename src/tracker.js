@@ -59,7 +59,8 @@ function entryIdentity(row) {
 /** Normalize rows and assign stable SHA-256 fingerprints without storing titles. */
 export function normalizeHistory(historyByKind) {
   const provisional = [];
-  for (const kind of ['anime', 'manga']) {
+  // Only anime episodes are counted; any manga rows passed in are ignored.
+  for (const kind of ['anime']) {
     const rows = Array.isArray(historyByKind?.[kind]) ? historyByKind[kind] : [];
     for (const row of rows) {
       if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
@@ -127,7 +128,7 @@ export function applyHistory(state, historyByKind, now = new Date()) {
     if (Object.hasOwn(state.seen_events, event.fingerprint)) continue;
     const record = state.daily[event.date] ?? { anime: 0, manga: 0, total: 0 };
     record[event.kind] = Number(record[event.kind] ?? 0) + event.increment;
-    record.total = Number(record.anime ?? 0) + Number(record.manga ?? 0);
+    record.total = Number(record.anime ?? 0);
     state.daily[event.date] = record;
     state.seen_events[event.fingerprint] = event.date;
     added[event.kind] += event.increment;

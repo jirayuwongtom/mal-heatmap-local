@@ -19,7 +19,7 @@ export async function main() {
     );
   }
 
-  // Fetch both data types successfully before changing state. This avoids a partial sync.
+  // Fetch successfully before changing state. This avoids a partial sync.
   const history = await collectRecentHistory(USERNAME, TOKI_BASE_URL);
   const { state: updatedState, summary } = applyHistory(state, history, new Date());
   await fs.writeFile(STATE_PATH, `${JSON.stringify(updatedState, null, 2)}\n`, 'utf8');
@@ -28,10 +28,9 @@ export async function main() {
   await writeSite(updatedState, USERNAME, path.join(ROOT, 'site'), { repository });
 
   console.log(`MAL account: ${USERNAME}`);
-  console.log(`Recent history rows returned: anime=${history.anime.length}, manga=${history.manga.length}`);
+  console.log(`Recent anime history rows returned: ${history.anime.length}`);
   console.log(`Previously unseen history events imported: ${summary.events_added}`);
   console.log(`Anime episodes added: ${summary.anime_added}`);
-  console.log(`Manga chapters added: ${summary.manga_added}`);
   console.log(`Contribution dates changed: ${summary.days_changed.join(', ') || 'none'}`);
   if (summary.first_import) {
     console.log('First import complete: all history currently exposed by MAL was backfilled.');

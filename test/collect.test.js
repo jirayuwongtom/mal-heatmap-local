@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HistorySourceError, fetchUserHistory } from '../src/collect.js';
+import { HistorySourceError, collectRecentHistory, fetchUserHistory } from '../src/collect.js';
 
 function mockResponse(status, payload, text = '') {
   return {
@@ -54,4 +54,16 @@ test('encodes usernames safely in endpoint URL', async () => {
     return mockResponse(200, []);
   });
   assert.match(requestUrl, /user%20name/);
+});
+
+test('collectRecentHistory requests anime only and never manga', async () => {
+  const requested = [];
+  const history = await collectRecentHistory('TiMEZ4I3eth', 'http://127.0.0.1:3000', async (url) => {
+    requested.push(String(url));
+    return mockResponse(200, [{ mal_url: { mal_id: 1 }, increment: 1, date: '2026-11-14T10:00:00+00:00' }]);
+  });
+  assert.equal(requested.length, 1);
+  assert.match(requested[0], /type=anime$/);
+  assert.equal(history.anime.length, 1);
+  assert.deepEqual(history.manga, []);
 });

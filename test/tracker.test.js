@@ -4,7 +4,7 @@ import { applyHistory, normalizeHistory, parseMalDateTime } from '../src/tracker
 
 const BANGKOK_NOW = new Date('2026-11-15T13:00:00Z');
 
-test('first run backfills visible recent history', () => {
+test('first run backfills visible recent history and ignores manga', () => {
   const state = { schema_version: 2, username: 'TiMEZ4I3eth', seen_events: {}, daily: {} };
   const history = {
     anime: [{ mal_url: { mal_id: 1535, url: 'https://myanimelist.net/anime/1535' }, increment: 2, date: '2026-11-14T10:00:00+00:00' }],
@@ -12,8 +12,8 @@ test('first run backfills visible recent history', () => {
   };
   const { state: updated, summary } = applyHistory(state, history, BANGKOK_NOW);
   assert.equal(summary.first_import, true);
-  assert.equal(summary.events_added, 2);
-  assert.deepEqual(updated.daily['2026-11-14'], { anime: 2, manga: 5, total: 7 });
+  assert.equal(summary.events_added, 1);
+  assert.deepEqual(updated.daily['2026-11-14'], { anime: 2, manga: 0, total: 2 });
   assert.ok(updated.first_import_at);
 });
 
