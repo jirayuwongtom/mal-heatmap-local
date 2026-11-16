@@ -33,20 +33,30 @@ function isoUtcDate(date) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
-export function makeCalendarData(daily = {}, todayIso = isoDateInTimeZone(new Date())) {
-  const end = parseIsoDate(todayIso);
-  let start = addUtcDays(end, -364);
-  // Align first column to Sunday, matching GitHub's Sunday-first contributions layout.
-  start = addUtcDays(start, -start.getUTCDay());
+export function makeYearCalendarData(daily = {}, year = new Date().getUTCFullYear()) {
+  const numericYear = Number(year);
+  if (!Number.isInteger(numericYear) || numericYear < 1970 || numericYear > 9999) {
+    throw new RangeError(`Invalid calendar year: ${year}`);
+  }
+  const firstDay = parseIsoDate(`${numericYear}-01-01`);
+  const lastDay = parseIsoDate(`${numericYear}-12-31`);
+  // Align the first column to Sunday, as in GitHub's contribution calendar.
+  const start = addUtcDays(firstDay, -firstDay.getUTCDay());
   const cells = [];
-  for (let day = new Date(start); day <= end; day = addUtcDays(day, 1)) {
+  for (let day = new Date(firstDay); day <= lastDay; day = addUtcDays(day, 1)) {
     const key = isoUtcDate(day);
     const record = daily[key] ?? {};
     const anime = Number(record.anime ?? 0);
     const manga = Number(record.manga ?? 0);
     cells.push({ date: key, anime, manga, total: Number(record.total ?? anime + manga) });
   }
-  return { start: isoUtcDate(start), cells };
+  return { year: numericYear, start: isoUtcDate(start), cells };
+}
+
+// Kept as a compatibility alias for callers from the rolling-calendar version.
+export function makeCalendarData(daily = {}, todayIso = isoDateInTimeZone(new Date())) {
+  const date = parseIsoDate(todayIso);
+  return makeYearCalendarData(daily, date.getUTCFullYear());
 }
 
 // Small built-in 5x7 bitmap font. This keeps PNG generation dependency-free.
@@ -166,9 +176,12 @@ function drawText(pixels, width, height, text, x, y, color, scale = 1) {
   return cursor;
 }
 
-export function renderHeatmapPng(username, cells, startIso, outputPath) {
+export function renderHeatmapPng(username, cells, startIso, outputPath, year = Number(cells[0]?.date?.slice(0, 4)) || new Date().getUTCFullYear()) {
   const cell = 13; const gap = 4; const left = 54; const top = 76;
-  const weeks = Math.ceil(cells.length / 7);
+  const gridStart = parseIsoDate(startIso);
+  const finalDay = cells.length ? parseIsoDate(cells.at(-1).date) : parseIsoDate(`${year}-12-31`);
+  const gridEnd = addUtcDays(finalDay, 6 - finalDay.getUTCDay());
+  const weeks = Math.floor((gridEnd - gridStart) / 86_400_000 / 7) + 1;
   const width = left + weeks * (cell + gap) + 24;
   const height = 62 + 7 * (cell + gap) + 48;
   const pixels = Buffer.alloc(width * height * 3);
@@ -177,8 +190,8 @@ export function renderHeatmapPng(username, cells, startIso, outputPath) {
     pixels[offset] = bg[0]; pixels[offset + 1] = bg[1]; pixels[offset + 2] = bg[2];
   }
 
-  drawText(pixels, width, height, `${username} - MAL CONTRIBUTIONS`, left, 14, TEXT, 2);
-  drawText(pixels, width, height, 'ANIME EPISODES + MANGA CHAPTERS - LAST 365 DAYS', left, 39, MUTED, 1);
+  drawText(pixels, width, height, `${username} - MAL CONTRIBUTIONS ${year}`, left, 14, TEXT, 2);
+  drawText(pixels, width, height, `ANIME EPISODES + MANGA CHAPTERS - ${year}`, left, 39, MUTED, 1);
 
   for (const [row, label] of [[1, 'MON'], [3, 'WED'], [5, 'FRI']]) {
     drawText(pixels, width, height, label, 9, top + row * (cell + gap) + 3, MUTED, 1);
@@ -207,7 +220,9 @@ export function renderHeatmapPng(username, cells, startIso, outputPath) {
     drawRoundedRect(pixels, width, height, x, legendY, cell, cell, 2, color);
     x += cell + gap;
   }
-  drawText(pixels, width, height, 'MORE', x + 4, legendY + 2, MUTED, 1);
+  const moreWidth = 4 * 6;
+  const moreX = width - 24 - moreWidth;
+  drawText(pixels, width, height, 'MORE', moreX, legendY + 2, MUTED, 1);
   return fs.writeFile(outputPath, encodePng(width, height, pixels));
 }
 
@@ -231,18 +246,36 @@ export async function writeSite(state, username, outputDir, options = {}) {
   await fs.mkdir(outputDir, { recursive: true });
   const now = options.now instanceof Date ? options.now : new Date();
   const today = isoDateInTimeZone(now);
-  const { start, cells } = makeCalendarData(state.daily ?? {}, today);
+  const currentYear = Number(today.slice(0, 4));
+  const daily = state.daily ?? {};
+  const storedYears = Object.keys(daily)
+    .map((date) => /^(\d{4})-\d{2}-\d{2}$/.exec(date))
+    .filter(Boolean)
+    .map((match) => Number(match[1]));
+  const earliestYear = storedYears.length ? Math.min(...storedYears) : currentYear;
+  const years = Array.from({ length: currentYear - earliestYear + 1 }, (_, index) => earliestYear + index);
+  const currentCalendar = makeYearCalendarData(daily, currentYear);
+
+  // Publish a permanent PNG for each calendar year, plus heatmap.png as the
+  // stable current-year URL used by the MyAnimeList BBCode.
+  for (const year of years) {
+    const calendar = year === currentYear ? currentCalendar : makeYearCalendarData(daily, year);
+    await renderHeatmapPng(username, calendar.cells, calendar.start, path.join(outputDir, `heatmap-${year}.png`), year);
+  }
+  await renderHeatmapPng(username, currentCalendar.cells, currentCalendar.start, path.join(outputDir, 'heatmap.png'), currentYear);
+
   const data = {
     username,
     generated_at: options.generatedAt ?? now.toISOString(),
-    range_start: start,
+    current_year: currentYear,
+    years,
+    range_start: `${currentYear}-01-01`,
     range_end: today,
-    daily: cells,
+    daily: currentCalendar.cells,
     first_import_at: state.first_import_at ?? null,
     last_sync_at: state.last_sync_at ?? null,
   };
   await fs.writeFile(path.join(outputDir, 'activity.json'), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-  await renderHeatmapPng(username, cells, start, path.join(outputDir, 'heatmap.png'));
 
   const imageUrl = options.imageUrl ?? makeImageUrl(options.repository ?? process.env.GITHUB_REPOSITORY);
   const bbcode = `[img]${imageUrl}[/img]`;
@@ -267,6 +300,9 @@ a{display:block;line-height:0}
 img{display:block;width:100%;height:auto;border:0}
 .share{margin-top:14px;padding:13px 14px;background:#0b0f15;border:1px solid #1d2733;border-radius:5px;color:#d6e2ef;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
 .share-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
+.share-tools{display:flex;align-items:center;gap:8px}
+.year-label{color:#8293a6;font:11px system-ui,sans-serif}
+.year-select{padding:6px 8px;background:#080b10;border:1px solid #1b2632;border-radius:4px;color:#c7dcf2;font:11px ui-monospace,SFMono-Regular,Consolas,monospace}
 .share-title{margin:0;color:#9eb6cf;font-size:11px;letter-spacing:.08em}
 .share-help{margin:3px 0 0;color:#8293a6;font:11px/1.5 system-ui,sans-serif}
 .png-link{color:#58a6e7;text-decoration:none;white-space:nowrap}
@@ -282,16 +318,22 @@ img{display:block;width:100%;height:auto;border:0}
 </head>
 <body>
 <main>
-  <a href="heatmap.png" aria-label="Open full-size MAL contributions heatmap">
-    <img src="heatmap.png" alt="${escapedUsername} MyAnimeList contributions for the last 365 days" width="979" height="229">
+  <a id="heatmap-image-link" href="heatmap.png" aria-label="Open full-size MAL contributions heatmap">
+    <img id="heatmap-image" src="heatmap.png" alt="${escapedUsername} MyAnimeList contributions for ${currentYear}" width="979" height="229">
   </a>
   <section class="share" aria-labelledby="share-title">
     <div class="share-head">
       <div>
         <h2 class="share-title" id="share-title">USE ON MYANIMELIST PROFILE</h2>
-        <p class="share-help">Copy this BBCode to display your heatmap on your MAL profile.</p>
+        <p class="share-help">Copy this BBCode to display your current-year heatmap on your MAL profile.</p>
       </div>
-      <a class="png-link" href="heatmap.png">Open PNG</a>
+      <div class="share-tools">
+        <label class="year-label" for="year-select">YEAR</label>
+        <select class="year-select" id="year-select" aria-label="Choose contribution year">
+          ${years.slice().reverse().map((year) => `<option value="${year}"${year === currentYear ? ' selected' : ''}>${year}</option>`).join('')}
+        </select>
+        <a class="png-link" id="png-link" href="heatmap.png">Open PNG</a>
+      </div>
     </div>
     <div class="share-row">
       <code class="bbcode" id="bbcode">${escapedBbcode}</code>
@@ -303,8 +345,21 @@ img{display:block;width:100%;height:auto;border:0}
 <script>
 (() => {
   const bbcode = ${bbcodeJson};
+  const currentYear = ${currentYear};
   const button = document.getElementById('copy-bbcode');
   const status = document.getElementById('copy-status');
+  const yearSelect = document.getElementById('year-select');
+  const image = document.getElementById('heatmap-image');
+  const imageLink = document.getElementById('heatmap-image-link');
+  const pngLink = document.getElementById('png-link');
+  yearSelect.addEventListener('change', () => {
+    const year = Number(yearSelect.value);
+    const file = year === currentYear ? 'heatmap.png' : 'heatmap-' + year + '.png';
+    image.src = file;
+    image.alt = ${JSON.stringify(username)} + ' MyAnimeList contributions for ' + year;
+    imageLink.href = file;
+    pngLink.href = file;
+  });
   button.addEventListener('click', async () => {
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
