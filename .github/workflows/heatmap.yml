@@ -3,8 +3,7 @@ name: Build MAL Contributions
 on:
   # Run once every 24 hours at 00:17 in Thailand (off the busy top of the hour).
   schedule:
-    - cron: '17 0 * * *'
-      timezone: 'Asia/Bangkok'
+    - cron: '17 17 * * *'
   workflow_dispatch:
   push:
     branches: [main]
