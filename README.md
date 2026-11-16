@@ -92,7 +92,7 @@ Heatmap ใช้โทนน้ำเงินเข้มไล่ไปฟ้
 3. กด **Run workflow**
 4. รอให้ Job ทดสอบ JavaScript, Build Toki, ดึงประวัติ, สร้างภาพ และ Deploy จบ
 
-หลังจากนั้น Scheduled Workflow จะทำงานวันละครั้งเวลา 07:17 น. ตามเวลาไทย คุณสามารถกด Run workflow เองหลังอัปเดต MAL ได้เช่นกัน
+หลังจากนั้น Scheduled Workflow จะทำงานวันละครั้งเวลา 00:17 น. ตามเวลาไทย คุณสามารถกด Run workflow เองหลังอัปเดต MAL ได้เช่นกัน
 
 ### 4. ไม่มี API Secret ให้ตั้งค่า
 
@@ -144,7 +144,7 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 
 ## การทำงานและข้อจำกัด
 
-- Scheduled Workflow ตั้งให้ทำงานวันละครั้ง (ทุก 24 ชั่วโมง) ที่ 07:17 น. ตามเวลา Asia/Bangkok โดยกำหนด timezone ใน GitHub Actions โดยตรง การ Push โค้ดเข้า main หรือกด Run workflow ด้วยตนเองยังสามารถสั่งให้ทำงานนอกตารางได้ และ GitHub อาจเริ่มงานตามกำหนดช้ากว่าเวลาเล็กน้อย
+- Scheduled Workflow ตั้งให้ทำงานวันละครั้ง (ทุก 24 ชั่วโมง) ที่ 00:17 น. ตามเวลา Asia/Bangkok โดยกำหนด timezone ใน GitHub Actions โดยตรง การ Push โค้ดเข้า main หรือกด Run workflow ด้วยตนเองยังสามารถสั่งให้ทำงานนอกตารางได้ และ GitHub อาจเริ่มงานตามกำหนดช้ากว่าเวลาเล็กน้อย
 - Toki เป็น Unofficial Scraper และพึ่งพา HTML ของ MAL ถ้า MAL เปลี่ยนหน้าเว็บ, ปิดกั้น Runner หรือ Toki เปลี่ยนรูปแบบ response การดึงข้อมูลอาจล้มเหลว
 - Toki จะถูก Build ใหม่ทุกครั้งที่ Workflow ทำงาน โดยใช้ Go `1.27.4` (Toki ต้องการ Go 1.26 ขึ้นไป)
 - Workflow ใช้ 2 History Requests ต่อรอบ (Anime และ Manga) และเว้นช่วงระหว่างคำขอ
