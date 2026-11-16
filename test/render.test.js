@@ -40,6 +40,11 @@ test('writes valid PNG, activity JSON, and public HTML', async () => {
     assert.ok(!html.includes('Contribution activity'));
     assert.ok(!html.includes('contributions in last 365 days'));
     assert.ok(!html.includes('class=\"stats\"'));
+    assert.ok(html.includes('[img]https://jirayuwongtom.github.io/mal-heatmap-local/heatmap.png[/img]'));
+    assert.ok(html.includes('id="copy-bbcode"'));
+    assert.ok(html.includes('Copy BBCode'));
+    assert.ok(html.includes('navigator.clipboard?.writeText'));
+    assert.ok(html.includes("document.execCommand('copy')"));
   } finally {
     await fs.rm(temp, { recursive: true, force: true });
   }

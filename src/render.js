@@ -244,6 +244,10 @@ export async function writeSite(state, username, outputDir, options = {}) {
   await fs.writeFile(path.join(outputDir, 'activity.json'), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
   await renderHeatmapPng(username, cells, start, path.join(outputDir, 'heatmap.png'));
 
+  const imageUrl = options.imageUrl ?? makeImageUrl(options.repository ?? process.env.GITHUB_REPOSITORY);
+  const bbcode = `[img]${imageUrl}[/img]`;
+  const escapedBbcode = escapeHtml(bbcode);
+  const bbcodeJson = JSON.stringify(bbcode).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
   const escapedUsername = escapeHtml(username);
   // Keep the public page visually identical to the compact MAL-style PNG.
   // The page intentionally contains no GitHub-like profile header or summary cards.
@@ -261,7 +265,19 @@ body{min-height:100vh;padding:64px 16px 32px;display:flex;justify-content:center
 main{width:min(880px,100%)}
 a{display:block;line-height:0}
 img{display:block;width:100%;height:auto;border:0}
-@media(max-width:600px){body{padding:24px 12px}main{width:100%}}
+.share{margin-top:14px;padding:13px 14px;background:#0b0f15;border:1px solid #1d2733;border-radius:5px;color:#d6e2ef;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.share-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
+.share-title{margin:0;color:#9eb6cf;font-size:11px;letter-spacing:.08em}
+.share-help{margin:3px 0 0;color:#8293a6;font:11px/1.5 system-ui,sans-serif}
+.png-link{color:#58a6e7;text-decoration:none;white-space:nowrap}
+.png-link:hover{text-decoration:underline}
+.share-row{display:flex;align-items:stretch;gap:8px}
+.bbcode{display:block;flex:1;min-width:0;padding:9px 10px;background:#080b10;border:1px solid #1b2632;border-radius:4px;color:#9dc8f2;overflow-wrap:anywhere;line-height:1.6}
+.copy-button{flex:none;padding:8px 12px;background:#214b78;border:1px solid #2f70ad;border-radius:4px;color:#f1f7ff;font:600 11px system-ui,sans-serif;cursor:pointer}
+.copy-button:hover{background:#2f70ad}
+.copy-button:focus-visible{outline:2px solid #58a6e7;outline-offset:2px}
+.copy-status{min-height:16px;margin:6px 0 0;color:#8fc6f7;font:11px system-ui,sans-serif}
+@media(max-width:600px){body{padding:24px 12px}main{width:100%}.share-row{flex-direction:column}.copy-button{width:100%}}
 </style>
 </head>
 <body>
@@ -269,7 +285,46 @@ img{display:block;width:100%;height:auto;border:0}
   <a href="heatmap.png" aria-label="Open full-size MAL contributions heatmap">
     <img src="heatmap.png" alt="${escapedUsername} MyAnimeList contributions for the last 365 days" width="979" height="229">
   </a>
+  <section class="share" aria-labelledby="share-title">
+    <div class="share-head">
+      <div>
+        <h2 class="share-title" id="share-title">USE ON MYANIMELIST PROFILE</h2>
+        <p class="share-help">Copy this BBCode to display your heatmap on your MAL profile.</p>
+      </div>
+      <a class="png-link" href="heatmap.png">Open PNG</a>
+    </div>
+    <div class="share-row">
+      <code class="bbcode" id="bbcode">${escapedBbcode}</code>
+      <button class="copy-button" id="copy-bbcode" type="button">Copy BBCode</button>
+    </div>
+    <p class="copy-status" id="copy-status" aria-live="polite"></p>
+  </section>
 </main>
+<script>
+(() => {
+  const bbcode = ${bbcodeJson};
+  const button = document.getElementById('copy-bbcode');
+  const status = document.getElementById('copy-status');
+  button.addEventListener('click', async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(bbcode);
+      status.textContent = 'Copied!';
+    } catch (_) {
+      const field = document.createElement('textarea');
+      field.value = bbcode;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      const copied = document.execCommand('copy');
+      field.remove();
+      status.textContent = copied ? 'Copied!' : 'Copy failed — select the BBCode and copy it manually.';
+    }
+  });
+})();
+</script>
 </body>
 </html>`;
 
