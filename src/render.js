@@ -214,15 +214,14 @@ export function renderHeatmapPng(username, cells, startIso, outputPath, year = N
   }
 
   const legendY = top + 7 * (cell + gap) + 9;
-  drawText(pixels, width, height, 'LESS', left, legendY + 2, MUTED, 1);
-  let x = left + 32;
+  const legendLeft = left + weeks * (cell + gap) - gap - 144;
+  drawText(pixels, width, height, 'LESS', legendLeft, legendY + 2, MUTED, 1);
+  let x = legendLeft + 32;
   for (const color of COLORS) {
     drawRoundedRect(pixels, width, height, x, legendY, cell, cell, 2, color);
     x += cell + gap;
   }
-  const moreWidth = 4 * 6;
-  const moreX = width - 24 - moreWidth;
-  drawText(pixels, width, height, 'MORE', moreX, legendY + 2, MUTED, 1);
+  drawText(pixels, width, height, 'MORE', x + 4, legendY + 2, MUTED, 1);
   return fs.writeFile(outputPath, encodePng(width, height, pixels));
 }
 
