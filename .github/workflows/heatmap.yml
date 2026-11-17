@@ -5,6 +5,7 @@ on:
   # Thailand has no DST, so a fixed UTC cron is exact. Off the top of the hour to avoid GitHub's delays.
   schedule:
     - cron: '7 20 * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
