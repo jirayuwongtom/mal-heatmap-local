@@ -2,9 +2,27 @@
   "schema_version": 2,
   "username": "TiMEZ4I3eth",
   "first_import_at": "2026-11-16T06:26:56+07:00",
-  "last_sync_at": "2026-11-18T11:41:43+07:00",
+  "last_sync_at": "2026-11-18T12:20:51+07:00",
   "history_source": "Toki public MAL history",
-  "seen_events": {},
+  "seen_events": {
+    "ac6231ec124acb22f34b44071ff218afe7e8f86cb4d10df3de3df6ecf7b23549": "2026-10-30",
+    "6e8747ad9ffa1eb037fa876d67586c84e995de8a6ea393870237e2f8b885e2ba": "2026-10-27",
+    "f93369a3ed40a24e0f901c17594d87028ff2b954ec1f8068c6f758f95edaf3c8": "2026-10-28",
+    "90fc71678579c32142c723a22381c0c2890c40043ddc4ca45a54c22999cf2e33": "2026-10-29",
+    "0c1c50bacccc8990954d85b61db0ec1933c1704d43e004a57c1e9346bf52e93d": "2026-11-02",
+    "9d4891bb0bae9b0916a605fe5b955dc525222f7dc682200a6afd3afe8b21b934": "2026-11-12",
+    "55f501a8d08f068ed369bae16fb72b85b1df6d24c7bc747a4fcfbfa203d459b9": "2026-11-09",
+    "e5c22cb382eb9b50b6438b093e91517007e6ac850c9219afb3e4fce8402e3e6c": "2026-11-10",
+    "e2bd02f244dbd8f35bb618d1fe0d63494e724341892994aa3a80d2e9bcac854f": "2026-11-04",
+    "69453ad962332e94e49c4f6873deb70aa2a915e8b7183195ed8ce4e998cb59b5": "2026-11-17",
+    "bd06b18551f7d5444672383dd03aa47384c2ee75f83c841f7b2d2a0b0f96fe65": "2026-11-11",
+    "ea5dcfaa66e4ff1f819fc0c8f97bca56b56dc94fc5073b4b389c8ce913686e8a": "2026-11-03",
+    "5415e41215719d68e54bb4e1958fa7d85df6c190cb8bcd41c1b5391f3a3b86a3": "2026-11-05",
+    "fbd8df8961510ec651b407d3faa4213f89768dfe74bf427126d9bc720d38a518": "2026-11-13",
+    "fe8e7f6b8df7e3310c0214c3c5c0a55727e72d8d981585b69beb377cac4d7c82": "2026-11-13",
+    "0d588e6be34d3917f66061e694ca6d89da4455ad197e5a73cf36d6af7a6d273d": "2026-10-26",
+    "7ea4c0158fbaa8d40c13e67a509950ed3c0ee20066c45e211c5e0452100f1aef": "2026-11-09"
+  },
   "daily": {
     "2019-08-10": {
       "anime": 14,
@@ -3737,14 +3755,79 @@
       "total": 12
     },
     "2026-11-02": {
-      "anime": 0,
+      "anime": 12,
       "manga": 202,
-      "total": 0
+      "total": 12
     },
     "2026-11-05": {
-      "anime": 0,
+      "anime": 13,
       "manga": 41,
-      "total": 0
+      "total": 13
+    },
+    "2026-10-30": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-10-27": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-10-28": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-10-29": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-11-12": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-11-09": {
+      "anime": 16,
+      "manga": 0,
+      "total": 16
+    },
+    "2026-11-10": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-11-04": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-11-17": {
+      "anime": 15,
+      "manga": 0,
+      "total": 15
+    },
+    "2026-11-11": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-11-03": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
+    },
+    "2026-11-13": {
+      "anime": 14,
+      "manga": 0,
+      "total": 14
+    },
+    "2026-10-26": {
+      "anime": 3,
+      "manga": 0,
+      "total": 3
     }
   }
 }
