@@ -4,8 +4,7 @@ on:
   # Run once a day at 03:07 Thailand time (= 20:07 UTC the previous day).
   # Thailand has no DST, so a fixed UTC cron is exact. Off the top of the hour to avoid GitHub's delays.
   schedule:
-    - cron: '7 20 * * *'
-    - cron: '10,25,40,55 * * * *'
+    - cron: '7,37 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
