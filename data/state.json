@@ -2,7 +2,7 @@
   "schema_version": 2,
   "username": "TiMEZ4I3eth",
   "first_import_at": "2026-11-16T06:26:56+07:00",
-  "last_sync_at": "2026-11-18T06:55:15+07:00",
+  "last_sync_at": "2026-11-18T09:18:50+07:00",
   "history_source": "Toki public MAL history",
   "seen_events": {
     "68ce8376ec286beca9007d4d92ec8bee09f187d505bf441f4b2907f70ebd1283": "2026-10-30",
@@ -27,7 +27,8 @@
     "5750478fb7ff6d8a6ddc24bde567e071b896e184a48097fdf2451f2d7220ef19": "2026-11-02",
     "2a2a6de8fb77520f33b3778e3cd22989f3525f34e22b5362d59d7f3b3eb71b6f": "2026-11-02",
     "6beb69b70e913277420588c8792a69241de70263ca98450a91fa0754fca756e1": "2026-11-17",
-    "88db8381bc2569ba085b97346877410e07068d61ddfe55b68acafe9cf0ccef47": "2026-11-17"
+    "88db8381bc2569ba085b97346877410e07068d61ddfe55b68acafe9cf0ccef47": "2026-11-17",
+    "1d8e6f8b6247b6059348153b94b9cdd4086489d60c57a7d8cd2fe07eb8d96dcd": "2026-11-18"
   },
   "daily": {
     "2019-08-10": {
@@ -3834,6 +3835,11 @@
       "anime": 30,
       "manga": 0,
       "total": 30
+    },
+    "2026-11-18": {
+      "anime": 15,
+      "manga": 0,
+      "total": 15
     }
   }
 }
