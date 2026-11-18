@@ -21,6 +21,8 @@ export async function main() {
       `${JSON.stringify(state.username)}. Update data/state.json deliberately before switching accounts.`,
     );
   }
+  // Fetch successfully before changing state. This avoids a partial sync.
+  const history = await collectRecentHistory(USERNAME, TOKI_BASE_URL);
   for (const [index, row] of history.anime.entries()) {
   const parsed = parseMalDateTime(row.date);
 
@@ -34,8 +36,6 @@ export async function main() {
     utc_timestamp: parsed?.utcTimestamp ?? null
   }));
 }
-  // Fetch successfully before changing state. This avoids a partial sync.
-  const history = await collectRecentHistory(USERNAME, TOKI_BASE_URL);
   const { state: updatedState, summary } = applyHistory(state, history, new Date());
   await fs.writeFile(STATE_PATH, `${JSON.stringify(updatedState, null, 2)}\n`, 'utf8');
 
