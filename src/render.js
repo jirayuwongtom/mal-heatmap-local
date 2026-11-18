@@ -328,7 +328,8 @@ export async function writeSite(state, username, outputDir, options = {}) {
     range_end: today,
     daily: rolling.cells,
     first_import_at: state.first_import_at ?? null,
-    last_sync_at: state.last_sync_at ?? null,
+    last_sync_at: options.generatedAt ?? now.toISOString(),
+    last_change_at: state.last_change_at ?? null,
   };
   await fs.writeFile(path.join(outputDir, 'activity.json'), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 

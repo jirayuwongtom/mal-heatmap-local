@@ -67,3 +67,76 @@ test('collectRecentHistory requests anime only and never manga', async () => {
   assert.equal(history.anime.length, 1);
   assert.deepEqual(history.manga, []);
 });
+
+// ---- Retry behaviour (no real waiting: sleep is injected) ----
+
+function withHeaders(response, headers) {
+  return { ...response, headers: { get: (name) => headers[name.toLowerCase()] ?? null } };
+}
+
+const GOOD_ROWS = [{ mal_url: { mal_id: 1 }, increment: 1, date: '2026-11-14T10:00:00+00:00' }];
+
+test('HTTP 429 waits 30s, 60s, 90s and then succeeds on the 4th attempt', async () => {
+  const waits = [];
+  let calls = 0;
+  const fetchImpl = async () => (++calls < 4 ? mockResponse(429, null) : mockResponse(200, GOOD_ROWS));
+  const rows = await fetchUserHistory('u', 'anime', 'http://x', fetchImpl, { sleepImpl: async (ms) => { waits.push(ms); } });
+  assert.equal(rows.length, 1);
+  assert.equal(calls, 4);
+  assert.deepEqual(waits, [30_000, 60_000, 90_000]);
+});
+
+test('HTTP 429 honours Retry-After (capped at 120s)', async () => {
+  const waits = [];
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    if (calls === 1) return withHeaders(mockResponse(429, null), { 'retry-after': '45' });
+    if (calls === 2) return withHeaders(mockResponse(429, null), { 'retry-after': '9999' });
+    return mockResponse(200, GOOD_ROWS);
+  };
+  await fetchUserHistory('u', 'anime', 'http://x', fetchImpl, { sleepImpl: async (ms) => { waits.push(ms); } });
+  assert.deepEqual(waits, [45_000, 120_000]);
+});
+
+test('gives up after 4 attempts and reports the status', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls += 1; return mockResponse(429, null); };
+  await assert.rejects(
+    fetchUserHistory('u', 'anime', 'http://x', fetchImpl, { sleepImpl: async () => {} }),
+    (error) => error instanceof HistorySourceError && error.status === 429,
+  );
+  assert.equal(calls, 4);
+});
+
+test('HTTP 500 and 503 use short delays', async () => {
+  const waits = [];
+  const statuses = [500, 503];
+  const fetchImpl = async () => (statuses.length ? mockResponse(statuses.shift(), null, 'boom') : mockResponse(200, GOOD_ROWS));
+  await fetchUserHistory('u', 'anime', 'http://x', fetchImpl, { sleepImpl: async (ms) => { waits.push(ms); } });
+  assert.deepEqual(waits, [2_000, 4_000]);
+});
+
+test('HTTP 403 and 404 are not retried', async () => {
+  for (const status of [403, 404]) {
+    let calls = 0;
+    const fetchImpl = async () => { calls += 1; return mockResponse(status, null); };
+    await assert.rejects(
+      fetchUserHistory('u', 'anime', 'http://x', fetchImpl, { sleepImpl: async () => { throw new Error('must not sleep'); } }),
+      HistorySourceError,
+    );
+    assert.equal(calls, 1);
+  }
+});
+
+test('network errors are retried', async () => {
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    if (calls < 3) throw new TypeError('fetch failed');
+    return mockResponse(200, GOOD_ROWS);
+  };
+  const rows = await fetchUserHistory('u', 'anime', 'http://x', fetchImpl, { sleepImpl: async () => {} });
+  assert.equal(rows.length, 1);
+  assert.equal(calls, 3);
+});

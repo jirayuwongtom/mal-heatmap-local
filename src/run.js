@@ -11,7 +11,8 @@ const USERNAME = (process.env.MAL_USERNAME ?? 'TiMEZ4I3eth').trim();
 const TOKI_BASE_URL = (process.env.TOKI_BASE_URL ?? 'http://127.0.0.1:3000').trim();
 
 export async function main() {
-  const state = JSON.parse(await fs.readFile(STATE_PATH, 'utf8'));
+  const rawState = await fs.readFile(STATE_PATH, 'utf8');
+  const state = JSON.parse(rawState);
   if (state.username !== USERNAME) {
     throw new Error(
       `Configured username ${JSON.stringify(USERNAME)} does not match state.json username ` +
@@ -21,12 +22,16 @@ export async function main() {
   // Fetch successfully before changing state. This avoids a partial sync.
   const history = await collectRecentHistory(USERNAME, TOKI_BASE_URL);
   const { state: updatedState, summary } = applyHistory(state, history, new Date());
-  await fs.writeFile(STATE_PATH, `${JSON.stringify(updatedState, null, 2)}\n`, 'utf8');
+  // Only touch the file when something changed, so the workflow does not create empty commits.
+  const nextRawState = `${JSON.stringify(updatedState, null, 2)}\n`;
+  const stateChanged = nextRawState !== rawState.replace(/\r\n/g, '\n');
+  if (stateChanged) await fs.writeFile(STATE_PATH, nextRawState, 'utf8');
 
   const repository = (process.env.GITHUB_REPOSITORY ?? '').trim();
   await writeSite(updatedState, USERNAME, path.join(ROOT, 'site'), { repository });
 
   console.log(`MAL account: ${USERNAME}`);
+  console.log(`State file changed: ${stateChanged ? 'yes' : 'no'}`);
   console.log(`Recent anime history rows returned: ${history.anime.length}`);
   console.log(`Previously unseen history events imported: ${summary.events_added}`);
   console.log(`Anime episodes added: ${summary.anime_added}`);

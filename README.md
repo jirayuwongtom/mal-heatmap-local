@@ -153,6 +153,8 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 
 ## การทำงานและข้อจำกัด
 
+- `data/state.json` จะถูกแก้และ Commit ก็ต่อเมื่อมียอดเปลี่ยนจริงเท่านั้น (ไม่มี Commit ว่างทุกรอบ) เวลารันล่าสุดดูได้ที่ `last_sync_at` ใน `site/activity.json` ส่วน `last_change_at` ใน State คือเวลาที่ยอดเปลี่ยนล่าสุด
+- MAL แสดงประวัติเก่าโดยไม่มีปี (เช่น `Dec 28`) ระบบแก้ให้อัตโนมัติ: ถ้าวันที่ที่ได้อยู่ในอนาคตเกิน 24 ชั่วโมง จะถอยกลับ 1 ปี เพื่อให้ข้ามปีแล้วไม่นับซ้ำ
 - Scheduled Workflow ตั้งให้ทำงานวันละครั้ง (ทุก 24 ชั่วโมง) ที่ 00:17 น. ตามเวลา Asia/Bangkok โดยกำหนด timezone ใน GitHub Actions โดยตรง การ Push โค้ดเข้า main หรือกด Run workflow ด้วยตนเองยังสามารถสั่งให้ทำงานนอกตารางได้ และ GitHub อาจเริ่มงานตามกำหนดช้ากว่าเวลาเล็กน้อย
 - Toki เป็น Unofficial Scraper และพึ่งพา HTML ของ MAL ถ้า MAL เปลี่ยนหน้าเว็บ, ปิดกั้น Runner หรือ Toki เปลี่ยนรูปแบบ response การดึงข้อมูลอาจล้มเหลว
 - Toki จะถูก Build ใหม่ทุกครั้งที่ Workflow ทำงาน โดยใช้ Go `1.27.4` (Toki ต้องการ Go 1.26 ขึ้นไป)
@@ -165,7 +167,7 @@ BBCode สำหรับใส่ใน MyAnimeList Profile:
 - **JavaScript Test ไม่ผ่าน:** ดูชื่อ Test และข้อความ error ในขั้นตอน `Run JavaScript tests`
 - **Toki ตอบ HTTP 403:** MAL อาจปฏิเสธคำขอจาก GitHub Runner หรือโปรไฟล์/ประวัติไม่เปิดเป็นสาธารณะ
 - **Toki ตอบ HTTP 404:** ตรวจสอบ Username และการเข้าถึงหน้า Profile
-- **Toki ตอบ HTTP 429:** MAL จำกัดคำขอชั่วคราว ให้รอสักระยะแล้ว Run workflow ใหม่
+- **Toki ตอบ HTTP 429:** MAL จำกัดคำขอชั่วคราว ระบบจะรอ (ตาม `Retry-After` หรือ 30/60/90 วินาที) แล้วลองใหม่สูงสุด 4 ครั้งเอง หากยังไม่ผ่านให้รอสักระยะแล้ว Run workflow ใหม่
 - **จำนวน history rows เป็น 0:** อาจไม่มี Recent History ที่ยังมองเห็นได้ หรือ MAL เปลี่ยนหน้า History; ตรวจสอบหน้า <https://myanimelist.net/profile/TiMEZ4I3eth>
 - **Deploy Pages ไม่ผ่าน:** ตรวจสอบ Settings → Pages → Source ว่าเลือก GitHub Actions
 - **ไม่เห็นข้อมูลเก่ากว่า 21 วัน:** เป็นข้อจำกัดของ MAL ไม่ใช่ปัญหาของ Heatmap

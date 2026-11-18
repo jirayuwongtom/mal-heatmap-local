@@ -94,12 +94,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/state.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: update MAL contribution history [skip ci]"
-            git push
-          else
+          if git diff --cached --quiet; then
             echo "No tracker state changes to commit."
+            exit 0
           fi
+          git commit -m "chore: update MAL contribution history [skip ci]"
+          # main may have moved since checkout (e.g. you pushed code while this run was busy).
+          # Rebase onto it and retry instead of failing the whole run.
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              echo "Pushed tracker state (attempt $attempt)."
+              exit 0
+            fi
+            echo "Push attempt $attempt failed; retrying in $((attempt * 5))s."
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push data/state.json after 3 attempts."
+          exit 1
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6

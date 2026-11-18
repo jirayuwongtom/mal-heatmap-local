@@ -28,16 +28,37 @@ function isoDateInTimeZone(date, timeZone = BANGKOK_TIME_ZONE) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-/** Parse an ISO timestamp and return UTC instant plus Bangkok calendar date. */
-export function parseMalDateTime(value) {
+const FUTURE_TOLERANCE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * MAL prints older history rows without a year ("Dec 28, 5:03 PM") and Toki fills in the current
+ * year. Around New Year that puts December rows in the future. A real history event can never be
+ * in the future, so such a timestamp is moved back one year. This runs before fingerprinting, so
+ * fingerprints stay identical to the ones created in December.
+ */
+export function correctFutureYear(instant, now) {
+  if (!(now instanceof Date) || Number.isNaN(now.getTime())) return { instant, corrected: false };
+  if (instant.getTime() <= now.getTime() + FUTURE_TOLERANCE_MS) return { instant, corrected: false };
+  const earlier = new Date(instant);
+  earlier.setUTCFullYear(earlier.getUTCFullYear() - 1);
+  return { instant: earlier, corrected: true };
+}
+
+/**
+ * Parse an ISO timestamp and return UTC instant plus Bangkok calendar date.
+ * When `now` is given, timestamps in the future are assumed to be missing-year rows and are moved
+ * back one year (see correctFutureYear).
+ */
+export function parseMalDateTime(value, now = null) {
   if (typeof value !== 'string' || value.trim() === '') return null;
   let source = value.trim();
   // A timestamp without an explicit offset is treated as UTC for reproducibility.
   if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(source)) source += 'Z';
   const milliseconds = Date.parse(source);
   if (!Number.isFinite(milliseconds)) return null;
-  const instant = new Date(milliseconds);
+  const { instant, corrected } = correctFutureYear(new Date(milliseconds), now);
   return {
+    year_corrected: corrected,
     instant,
     date: isoDateInTimeZone(instant),
     // Canonical UTC timestamp with second precision keeps fingerprints stable.
@@ -57,7 +78,7 @@ function entryIdentity(row) {
 }
 
 /** Normalize rows and assign stable SHA-256 fingerprints without storing titles. */
-export function normalizeHistory(historyByKind) {
+export function normalizeHistory(historyByKind, now = new Date()) {
   const provisional = [];
   // Only anime episodes are counted; any manga rows passed in are ignored.
   for (const kind of ['anime']) {
@@ -67,7 +88,7 @@ export function normalizeHistory(historyByKind) {
       const rawIncrement = Number(row.increment ?? 0);
       if (!Number.isFinite(rawIncrement)) continue;
       const increment = Math.max(0, Math.trunc(rawIncrement));
-      const timestamp = parseMalDateTime(row.date);
+      const timestamp = parseMalDateTime(row.date, now);
       if (increment <= 0 || timestamp === null) continue;
       const identity = `${kind}|${entryIdentity(row)}|${timestamp.utcTimestamp}|${increment}`;
       provisional.push({ kind, date: timestamp.date, increment, identity });
@@ -119,7 +140,7 @@ export function applyHistory(state, historyByKind, now = new Date()) {
     state.seen_events = {};
   }
 
-  const normalized = normalizeHistory(historyByKind);
+  const normalized = normalizeHistory(historyByKind, now);
   const added = { anime: 0, manga: 0 };
   const changedDays = new Set();
   let importedEvents = 0;
@@ -138,7 +159,10 @@ export function applyHistory(state, historyByKind, now = new Date()) {
 
   const firstImport = state.first_import_at == null;
   if (firstImport) state.first_import_at = bangkokIsoTimestamp(now);
-  state.last_sync_at = bangkokIsoTimestamp(now);
+  // The state file must only change when the data changes; otherwise every scheduled run would
+  // create a commit. The time of the last run lives in site/activity.json (generated_at) instead.
+  delete state.last_sync_at;
+  if (firstImport || importedEvents > 0) state.last_change_at = bangkokIsoTimestamp(now);
   state.history_source = 'Toki public MAL history';
 
   return {
