@@ -231,7 +231,7 @@ export function renderHeatmapPng(username, cells, startIso, outputPath, options 
   const gridEnd = addUtcDays(finalDay, 6 - finalDay.getUTCDay());
   const weeks = Math.floor((gridEnd - gridStart) / 86_400_000 / 7) + 1;
   // Early in a calendar year the grid can be very short; keep room for the legend.
-  const drawnWeeks = Math.max(weeks, 12);
+  const drawnWeeks = Math.max(weeks, 53); 
   const periodLabel = options.periodLabel ?? 'IN THE LAST YEAR';
   const title = options.title ?? `${username} - MAL CONTRIBUTIONS`;
   const count = cells.reduce((sum, rec) => sum + rec.total, 0);
@@ -266,7 +266,7 @@ export function renderHeatmapPng(username, cells, startIso, outputPath, options 
   }
 
   const legendY = top + 7 * (cell + gap) + 9;
-  const legendLeft = left + weeks * (cell + gap) - gap - 144;
+  const legendLeft = left + drawnWeeks * (cell + gap) - gap - 144;
   drawText(pixels, width, height, 'LESS', legendLeft, legendY + 2, MUTED, 1);
   let x = legendLeft + 32;
   for (const color of COLORS) {
