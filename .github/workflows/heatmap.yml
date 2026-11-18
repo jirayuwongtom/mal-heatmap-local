@@ -49,6 +49,15 @@ jobs:
       - name: Download Toki history adapter
         run: git clone --depth 1 https://github.com/nyawave/toki.git "$RUNNER_TEMP/toki"
 
+      # MAL shows history times in Pacific time, but upstream Toki parses them as UTC. That shifts
+      # dates and makes "Today"/"Yesterday" resolve against the wrong day. Parse them as Pacific time
+      # (the same helper Toki already uses for "Last Online"). Fails loudly if upstream changes.
+      - name: Patch Toki to read history times as MAL (Pacific) time
+        working-directory: ${{ runner.temp }}/toki
+        run: |
+          sed -i 's/history\.Date = helper\.ParseDate(date)/history.Date = helper.ParseDateTimePST(date)/' internal/parser/user.go
+          grep -q 'history.Date = helper.ParseDateTimePST(date)' internal/parser/user.go
+
       - name: Set up Go for Toki
         uses: actions/setup-go@v7
         with:

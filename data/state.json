@@ -2,34 +2,9 @@
   "schema_version": 2,
   "username": "TiMEZ4I3eth",
   "first_import_at": "2026-11-16T06:26:56+07:00",
-  "last_sync_at": "2026-11-18T12:05:23+07:00",
+  "last_sync_at": "2026-11-18T11:41:43+07:00",
   "history_source": "Toki public MAL history",
-  "seen_events": {
-    "68ce8376ec286beca9007d4d92ec8bee09f187d505bf441f4b2907f70ebd1283": "2026-10-30",
-    "41864498ca946b8a9fa82c99d7a3dd27d39e1ee1fa6853b60a6bd85918036b8c": "2026-10-27",
-    "382a825d7551cf5e32cf7d9d1c094aa2d464bf2695cb84b843491fe0e6540434": "2026-10-28",
-    "38be2ee72b5531c0b76f0ecd7c3dbf74d590791e0b7a6ea2a11efbcd76dc40dd": "2026-10-29",
-    "7d6d0a092a7c760c7d6667a00c7aad0dfad34a7ef3300e1520ba5553ade27e49": "2026-11-02",
-    "f802a35eaef39b592d025bca43855acdaa73008d279d598eea373d01c57c15fb": "2026-11-12",
-    "ba4cde20ed7709667dcda153a28fbcb8503e513f7924c64ddd46823c826900c1": "2026-11-09",
-    "409dc98e26f29974962bc05041658396668aad7a88927c13ff6f8b16798c8ba4": "2026-11-10",
-    "0a65508fc40d55b83e445a16aff69a1f802a69e286d9bc5294b79b18199db6c9": "2026-11-04",
-    "e12533176395bb878aab85e2819e7ef20308120897d6a999033748ff645c2248": "2026-11-11",
-    "5edd5a30d568ed7cf68fdfed064b040682dca353470ecdec83feb9c88f2f709b": "2026-11-03",
-    "e18a9361a4e2e6d35daa0a616f3a0f4620baea3dc121083ff98d55c559d563b7": "2026-11-05",
-    "947b1d2e9c78154b1e07096612fc4793e90ae825c014a05e63e004badfaf4539": "2026-11-13",
-    "ec4aa1e3b335792b14061f57a554dc9e9777a5752f14652d9d9f04516190c659": "2026-11-13",
-    "4de12a814bbb3c781797261a224eae913309d8920273fa1aa33c1fc29954f307": "2026-10-26",
-    "64799a799571cecd7b41576ca3977411cca49fde3e217aeee431de6477c6c00e": "2026-11-09",
-    "bf9307ed956fbf6bf009f3413bc667262410fec38ef2ef10d36e3f3dc5fddb7a": "2026-11-05",
-    "c213a493c4573f574d5e3073a4e3ee562307f83916decf1d9439ec88884f2902": "2026-11-02",
-    "8f28af37bd51554fd81d621b07aafc0fb888ab704c292e214fa2024690474702": "2026-11-02",
-    "5750478fb7ff6d8a6ddc24bde567e071b896e184a48097fdf2451f2d7220ef19": "2026-11-02",
-    "2a2a6de8fb77520f33b3778e3cd22989f3525f34e22b5362d59d7f3b3eb71b6f": "2026-11-02",
-    "6beb69b70e913277420588c8792a69241de70263ca98450a91fa0754fca756e1": "2026-11-17",
-    "88db8381bc2569ba085b97346877410e07068d61ddfe55b68acafe9cf0ccef47": "2026-11-17",
-    "1d8e6f8b6247b6059348153b94b9cdd4086489d60c57a7d8cd2fe07eb8d96dcd": "2026-11-18"
-  },
+  "seen_events": {},
   "daily": {
     "2019-08-10": {
       "anime": 14,
@@ -3761,85 +3736,15 @@
       "manga": 0,
       "total": 12
     },
-    "2026-10-26": {
-      "anime": 3,
-      "manga": 0,
-      "total": 3
-    },
-    "2026-10-27": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
-    "2026-10-28": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
-    "2026-10-29": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
-    "2026-10-30": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
     "2026-11-02": {
-      "anime": 12,
+      "anime": 0,
       "manga": 202,
-      "total": 214
-    },
-    "2026-11-03": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
-    "2026-11-04": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
+      "total": 0
     },
     "2026-11-05": {
-      "anime": 13,
+      "anime": 0,
       "manga": 41,
-      "total": 54
-    },
-    "2026-11-09": {
-      "anime": 16,
-      "manga": 0,
-      "total": 16
-    },
-    "2026-11-10": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
-    "2026-11-11": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
-    "2026-11-12": {
-      "anime": 12,
-      "manga": 0,
-      "total": 12
-    },
-    "2026-11-13": {
-      "anime": 14,
-      "manga": 0,
-      "total": 14
-    },
-    "2026-11-17": {
-      "anime": 30,
-      "manga": 0,
-      "total": 30
-    },
-    "2026-11-18": {
-      "anime": 15,
-      "manga": 0,
-      "total": 15
+      "total": 0
     }
   }
 }

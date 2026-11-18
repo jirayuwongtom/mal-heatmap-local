@@ -2,10 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectRecentHistory } from './collect.js';
-import {
-  applyHistory,
-  parseMalDateTime
-} from './tracker.js';
+import { applyHistory } from './tracker.js';
 import { writeSite } from './render.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,19 +20,6 @@ export async function main() {
   }
   // Fetch successfully before changing state. This avoids a partial sync.
   const history = await collectRecentHistory(USERNAME, TOKI_BASE_URL);
-  for (const [index, row] of history.anime.entries()) {
-  const parsed = parseMalDateTime(row.date);
-
-  console.log('[MAL-DIAG]', JSON.stringify({
-    index,
-    mal_id: row.mal_url?.mal_id,
-    url: row.mal_url?.url,
-    increment: row.increment,
-    raw_date: row.date,
-    bangkok_date: parsed?.date ?? null,
-    utc_timestamp: parsed?.utcTimestamp ?? null
-  }));
-}
   const { state: updatedState, summary } = applyHistory(state, history, new Date());
   await fs.writeFile(STATE_PATH, `${JSON.stringify(updatedState, null, 2)}\n`, 'utf8');
 
