@@ -1,10 +1,12 @@
 name: Build MAL Contributions
 
 on:
-  # Run once a day at 03:07 Thailand time (= 20:07 UTC the previous day).
-  # Thailand has no DST, so a fixed UTC cron is exact. Off the top of the hour to avoid GitHub's delays.
+  # The primary trigger is the external cron-job (every 6 hours, calling workflow_dispatch).
+  # This schedule is only a low-frequency backup in case that cron-job stops. GitHub may delay or
+  # skip scheduled runs, and disables them after 60 days without repository activity, so it must
+  # not be the only trigger. Twice a day (UTC 05:17 and 17:17) keeps MAL requests low.
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: '17 5,17 * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -34,7 +36,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
-          persist-credentials: true
+          # The token is NOT left in .git/config while third-party code (Toki) is built and run.
+          # It is added back only in the "Commit updated tracker state" step.
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -46,8 +50,32 @@ jobs:
 
       # Toki provides the public MAL Recent History endpoint that official MAL API v2 does not expose.
       # The Go binary is built and run only inside this temporary Actions runner.
+      # Pin Toki to a reviewed commit: set the repository variable TOKI_COMMIT
+      # (Settings -> Secrets and variables -> Actions -> Variables) to a full 40-character SHA.
+      # Without it the run still works but prints a warning with the SHA it used, so you can pin it.
       - name: Download Toki history adapter
-        run: git clone --depth 1 https://github.com/nyawave/toki.git "$RUNNER_TEMP/toki"
+        env:
+          TOKI_COMMIT: ${{ vars.TOKI_COMMIT }}
+        run: |
+          set -euo pipefail
+          TOKI_DIR="$RUNNER_TEMP/toki"
+          if [ -n "${TOKI_COMMIT:-}" ]; then
+            if ! printf '%s' "$TOKI_COMMIT" | grep -Eq '^[0-9a-f]{40}$'; then
+              echo "::error::TOKI_COMMIT must be a full 40-character lowercase commit SHA."
+              exit 1
+            fi
+            git init -q "$TOKI_DIR"
+            git -C "$TOKI_DIR" remote add origin https://github.com/nyawave/toki.git
+            git -C "$TOKI_DIR" fetch --depth 1 origin "$TOKI_COMMIT"
+            git -C "$TOKI_DIR" checkout -q FETCH_HEAD
+          else
+            git clone --depth 1 https://github.com/nyawave/toki.git "$TOKI_DIR"
+          fi
+          USED_SHA="$(git -C "$TOKI_DIR" rev-parse HEAD)"
+          echo "Toki commit in use: $USED_SHA"
+          if [ -z "${TOKI_COMMIT:-}" ]; then
+            echo "::warning::Toki is not pinned (it follows upstream's latest code). Set repository variable TOKI_COMMIT=$USED_SHA after reviewing it."
+          fi
 
       # MAL shows history times in Pacific time, but upstream Toki parses them as UTC. That shifts
       # dates and makes "Today"/"Yesterday" resolve against the wrong day. Parse them as Pacific time
@@ -70,7 +98,10 @@ jobs:
 
       - name: Start temporary Toki server
         run: |
-          HOST=127.0.0.1 PORT=3000 "$RUNNER_TEMP/toki-server" > "$RUNNER_TEMP/toki.log" 2>&1 &
+          # env -i: the third-party server gets an empty environment, so it cannot read the job's
+          # token variables (e.g. the OIDC request token that "id-token: write" adds).
+          env -i PATH="$PATH" HOME="$RUNNER_TEMP" HOST=127.0.0.1 PORT=3000 \
+            "$RUNNER_TEMP/toki-server" > "$RUNNER_TEMP/toki.log" 2>&1 &
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:3000/ > /dev/null; then
               echo "Toki is ready."
@@ -90,7 +121,11 @@ jobs:
         run: npm run build
 
       - name: Commit updated tracker state
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # Credentials were not persisted at checkout; give git the token only for this step.
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/state.json

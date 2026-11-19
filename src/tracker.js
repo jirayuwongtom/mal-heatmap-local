@@ -77,7 +77,16 @@ function entryIdentity(row) {
   return 'unknown-entry';
 }
 
-/** Normalize rows and assign stable SHA-256 fingerprints without storing titles. */
+/**
+ * Normalize rows and assign stable SHA-256 fingerprints without storing titles.
+ *
+ * `fingerprint` (current) identifies an event by anime + Bangkok calendar DATE + increment. The
+ * time of day is deliberately NOT part of it: the calendar only cares which day an episode was
+ * watched, so a differently-rounded or re-resolved clock time ("Today, 3:05 PM" vs "Nov 18, 3:05 PM")
+ * can never turn the same event into a "new" one.
+ * `legacyFingerprint` is the old time-of-day based hash. It is only used to recognise events that
+ * were stored before the date-based fingerprint existed, so upgrading never re-counts old history.
+ */
 export function normalizeHistory(historyByKind, now = new Date()) {
   const provisional = [];
   // Only anime episodes are counted; any manga rows passed in are ignored.
@@ -90,8 +99,14 @@ export function normalizeHistory(historyByKind, now = new Date()) {
       const increment = Math.max(0, Math.trunc(rawIncrement));
       const timestamp = parseMalDateTime(row.date, now);
       if (increment <= 0 || timestamp === null) continue;
-      const identity = `${kind}|${entryIdentity(row)}|${timestamp.utcTimestamp}|${increment}`;
-      provisional.push({ kind, date: timestamp.date, increment, identity });
+      const entry = entryIdentity(row);
+      provisional.push({
+        kind,
+        date: timestamp.date,
+        increment,
+        identity: `v2|${kind}|${entry}|${timestamp.date}|${increment}`,
+        legacyIdentity: `${kind}|${entry}|${timestamp.utcTimestamp}|${increment}`,
+      });
     }
   }
 
@@ -99,23 +114,25 @@ export function normalizeHistory(historyByKind, now = new Date()) {
   provisional.sort((a, b) => {
     if (a.identity < b.identity) return -1;
     if (a.identity > b.identity) return 1;
-    if (a.date < b.date) return -1;
-    if (a.date > b.date) return 1;
+    if (a.legacyIdentity < b.legacyIdentity) return -1;
+    if (a.legacyIdentity > b.legacyIdentity) return 1;
     return 0;
   });
 
   const occurrences = new Map();
+  const legacyOccurrences = new Map();
+  const hash = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
   return provisional.map((item) => {
     const duplicateNumber = occurrences.get(item.identity) ?? 0;
     occurrences.set(item.identity, duplicateNumber + 1);
-    const fingerprint = createHash('sha256')
-      .update(`${item.identity}|duplicate:${duplicateNumber}`, 'utf8')
-      .digest('hex');
+    const legacyDuplicate = legacyOccurrences.get(item.legacyIdentity) ?? 0;
+    legacyOccurrences.set(item.legacyIdentity, legacyDuplicate + 1);
     return {
       kind: item.kind,
       date: item.date,
       increment: item.increment,
-      fingerprint,
+      fingerprint: hash(`${item.identity}|duplicate:${duplicateNumber}`),
+      legacyFingerprint: hash(`${item.legacyIdentity}|duplicate:${legacyDuplicate}`),
     };
   });
 }
@@ -147,6 +164,12 @@ export function applyHistory(state, historyByKind, now = new Date()) {
 
   for (const event of normalized) {
     if (Object.hasOwn(state.seen_events, event.fingerprint)) continue;
+    // Imported by an older version of this tracker (time-of-day fingerprint): already counted.
+    // Remember it under the date-based fingerprint too, so later runs no longer depend on the clock time.
+    if (Object.hasOwn(state.seen_events, event.legacyFingerprint)) {
+      state.seen_events[event.fingerprint] = event.date;
+      continue;
+    }
     const record = state.daily[event.date] ?? { anime: 0, manga: 0, total: 0 };
     record[event.kind] = Number(record[event.kind] ?? 0) + event.increment;
     record.total = Number(record.anime ?? 0);

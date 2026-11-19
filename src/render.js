@@ -8,6 +8,7 @@ export const COLORS = ['#161b22', '#172f50', '#214b78', '#2f70ad', '#58a6e7'];
 const BACKGROUND = '#0d1117';
 const MUTED = '#8b949e';
 const TEXT = '#e6edf3';
+export const MIN_DRAWN_WEEKS = 53;
 
 /**
  * Level 0-4 relative to the busiest day in the period shown, split into quartiles.
@@ -230,8 +231,9 @@ export function renderHeatmapPng(username, cells, startIso, outputPath, options 
   const finalDay = cells.length ? parseIsoDate(cells.at(-1).date) : gridStart;
   const gridEnd = addUtcDays(finalDay, 6 - finalDay.getUTCDay());
   const weeks = Math.floor((gridEnd - gridStart) / 86_400_000 / 7) + 1;
-  // Early in a calendar year the grid can be very short; keep room for the legend.
-  const drawnWeeks = Math.max(weeks, 53); 
+  // Always at least 53 columns (a full GitHub-style year) so early-January images keep the same
+  // width and the title and legend are never clipped.
+  const drawnWeeks = Math.max(weeks, MIN_DRAWN_WEEKS);
   const periodLabel = options.periodLabel ?? 'IN THE LAST YEAR';
   const title = options.title ?? `${username} - MAL CONTRIBUTIONS`;
   const count = cells.reduce((sum, rec) => sum + rec.total, 0);

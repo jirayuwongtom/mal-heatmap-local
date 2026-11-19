@@ -1,0 +1,11 @@
+{
+  "_note": "Synthetic fixture shaped like Toki's /users/{name}/history?type=anime response (MAL times are Pacific, -08:00). Replace data with a real captured response (titles removed) when available; the tests only rely on the fields mal_url, increment and date.",
+  "data": [
+    { "mal_url": { "mal_id": 1535, "url": "https://myanimelist.net/anime/1535" }, "increment": 1, "date": "2026-11-17T22:15:00-08:00" },
+    { "mal_url": { "mal_id": 1535, "url": "https://myanimelist.net/anime/1535" }, "increment": 1, "date": "2026-11-17T21:40:00-08:00" },
+    { "mal_url": { "mal_id": 5114, "url": "https://myanimelist.net/anime/5114" }, "increment": 3, "date": "2026-11-16T08:05:00-08:00" },
+    { "mal_url": { "mal_id": 9253, "url": "https://myanimelist.net/anime/9253" }, "increment": 1, "date": "2026-11-12T19:30:00-08:00" },
+    { "mal_url": { "mal_id": 9253, "url": "https://myanimelist.net/anime/9253" }, "increment": 0, "date": "2026-11-12T19:31:00-08:00" },
+    { "mal_url": { "mal_id": 11061, "url": "https://myanimelist.net/anime/11061" }, "increment": 2, "date": null }
+  ]
+}
