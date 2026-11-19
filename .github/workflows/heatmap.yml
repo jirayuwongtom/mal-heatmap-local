@@ -4,9 +4,10 @@ on:
   # The primary trigger is the external cron-job (every 6 hours, calling workflow_dispatch).
   # This schedule is only a low-frequency backup in case that cron-job stops. GitHub may delay or
   # skip scheduled runs, and disables them after 60 days without repository activity, so it must
-  # not be the only trigger. Twice a day (UTC 05:17 and 17:17) keeps MAL requests low.
+  # not be the only trigger. Once a day at 00:17 Thailand time keeps backup requests low.
   schedule:
-    - cron: '17 5,17 * * *'
+    - cron: '17 0 * * *'
+      timezone: 'Asia/Bangkok'
   workflow_dispatch:
   push:
     branches: [main]
@@ -27,6 +28,8 @@ concurrency:
 
 jobs:
   collect-build-deploy:
+    # Manual dispatch from another branch must not publish an outdated site or push state to main.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment:

@@ -152,9 +152,13 @@ export function applyHistory(state, historyByKind, now = new Date()) {
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
     throw new TypeError('State must be a JSON object.');
   }
-  if (!state.daily || typeof state.daily !== 'object' || Array.isArray(state.daily)) state.daily = {};
+  // Never replace damaged containers with empty objects: that would silently discard the
+  // historical totals or deduplication ledger and could count old MAL rows again.
+  if (!state.daily || typeof state.daily !== 'object' || Array.isArray(state.daily)) {
+    throw new TypeError('State.daily must be an object; refusing to reset contribution history.');
+  }
   if (!state.seen_events || typeof state.seen_events !== 'object' || Array.isArray(state.seen_events)) {
-    state.seen_events = {};
+    throw new TypeError('State.seen_events must be an object; refusing to reset deduplication history.');
   }
 
   const normalized = normalizeHistory(historyByKind, now);

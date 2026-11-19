@@ -64,6 +64,16 @@ test('keeps already imported fingerprints and daily data intact', () => {
   assert.equal(updated.seen_events['already-seen'], '2026-11-14');
 });
 
+test('refuses malformed history containers instead of resetting them', () => {
+  const badDaily = { schema_version: 2, username: 'x', seen_events: {}, daily: [] };
+  assert.throws(() => applyHistory(badDaily, { anime: [] }), /State.daily must be an object/);
+  assert.deepEqual(badDaily.daily, []);
+
+  const badSeen = { schema_version: 2, username: 'x', seen_events: null, daily: {} };
+  assert.throws(() => applyHistory(badSeen, { anime: [] }), /State.seen_events must be an object/);
+  assert.equal(badSeen.seen_events, null);
+});
+
 // ---- New Year boundary: MAL prints "Dec 28, 5:03 PM" without a year and Toki assumes this year ----
 
 test('a December row parsed with next year is moved back one year', () => {

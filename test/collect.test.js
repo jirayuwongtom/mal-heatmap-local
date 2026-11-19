@@ -40,6 +40,43 @@ test('rejects unexpected response shape', async () => {
   );
 });
 
+test('rejects malformed rows instead of silently filtering them out', async () => {
+  await assert.rejects(
+    () => fetchUserHistory('u', 'anime', 'http://127.0.0.1:3000', async () => mockResponse(200, [
+      { mal_url: { mal_id: 1 }, increment: 1, date: '2026-11-14T10:00:00Z' },
+      null,
+    ])),
+    /invalid anime history row at position 2/,
+  );
+});
+
+test('rejects a history row without a usable anime identity', async () => {
+  await assert.rejects(
+    () => fetchUserHistory('u', 'anime', 'http://127.0.0.1:3000', async () => mockResponse(200, [
+      { mal_url: {}, increment: 1, date: '2026-11-14T10:00:00Z' },
+    ])),
+    /no usable ID or URL/,
+  );
+});
+
+test('rejects an invalid increment instead of importing a partial total', async () => {
+  for (const increment of [undefined, '2', 1.5]) {
+    const row = { mal_url: { mal_id: 1 }, increment, date: '2026-11-14T10:00:00Z' };
+    if (increment === undefined) delete row.increment;
+    await assert.rejects(
+      () => fetchUserHistory('u', 'anime', 'http://127.0.0.1:3000', async () => mockResponse(200, [row])),
+      /increment must be an integer/,
+    );
+  }
+});
+
+test('accepts a negative integer increment so the tracker can ignore non-contribution changes', async () => {
+  const rows = await fetchUserHistory('u', 'anime', 'http://127.0.0.1:3000', async () => mockResponse(200, [
+    { mal_url: { mal_id: 1 }, increment: -1, date: '2026-11-14T10:00:00Z' },
+  ]));
+  assert.equal(rows[0].increment, -1);
+});
+
 test('reports forbidden response clearly', async () => {
   await assert.rejects(
     () => fetchUserHistory('TiMEZ4I3eth', 'anime', 'http://127.0.0.1:3000', async () => mockResponse(403, {}, 'Forbidden')),

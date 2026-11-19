@@ -8,6 +8,55 @@ import { writeSite } from './render.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+function isObjectRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidIsoDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+/** Validate the persisted ledger before any network request or write can occur. */
+function validatePersistentState(state, username) {
+  if (!isObjectRecord(state)) {
+    throw new Error('state.json must contain a JSON object. Nothing was changed.');
+  }
+  if (state.schema_version !== 2) {
+    throw new Error(`Unsupported state.json schema_version ${JSON.stringify(state.schema_version)}; expected 2. Nothing was changed.`);
+  }
+  if (state.username !== username) {
+    throw new Error(
+      `Configured username ${JSON.stringify(username)} does not match state.json username ` +
+      `${JSON.stringify(state.username)}. Update data/state.json deliberately before switching accounts.`,
+    );
+  }
+  if (!isObjectRecord(state.daily)) {
+    throw new Error('state.json daily must be an object. Refusing to reset contribution history. Nothing was changed.');
+  }
+  if (!isObjectRecord(state.seen_events)) {
+    throw new Error('state.json seen_events must be an object. Refusing to reset deduplication history. Nothing was changed.');
+  }
+
+  for (const [date, record] of Object.entries(state.daily)) {
+    if (!isValidIsoDate(date)) {
+      throw new Error(`state.json contains an invalid daily date key ${JSON.stringify(date)}. Nothing was changed.`);
+    }
+    if (!isObjectRecord(record)) {
+      throw new Error(`state.json daily[${JSON.stringify(date)}] must be an object. Nothing was changed.`);
+    }
+    for (const field of ['anime', 'manga', 'total']) {
+      if (!Number.isSafeInteger(record[field]) || record[field] < 0) {
+        throw new Error(
+          `state.json daily[${JSON.stringify(date)}].${field} must be a non-negative safe integer. ` +
+          'Nothing was changed.',
+        );
+      }
+    }
+  }
+}
+
 /** Newest rows as "raw timestamp -> day counted", so date handling can be checked in the Actions log. */
 function describeNewestRows(history, now, limit = 5) {
   return history.anime
@@ -37,12 +86,7 @@ export async function main(options = {}) {
 
   const rawState = await fs.readFile(statePath, 'utf8');
   const state = JSON.parse(rawState);
-  if (state.username !== username) {
-    throw new Error(
-      `Configured username ${JSON.stringify(username)} does not match state.json username ` +
-      `${JSON.stringify(state.username)}. Update data/state.json deliberately before switching accounts.`,
-    );
-  }
+  validatePersistentState(state, username);
 
   // Fetch successfully before changing state. This avoids a partial sync.
   const history = await collectRecentHistory(

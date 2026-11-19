@@ -130,3 +130,21 @@ test('run: username mismatch is refused before any request is made', async () =>
     assert.equal(requests.length, 0);
   });
 });
+
+test('run: malformed state containers are refused before any request or write', async () => {
+  for (const overrides of [
+    { daily: [] },
+    { seen_events: null },
+    { schema_version: 1 },
+    { daily: { '2026-11-31': { anime: 1, manga: 0, total: 1 } } },
+    { daily: { '2026-11-17': { anime: '3', manga: 0, total: 3 } } },
+  ]) {
+    const p = await tempProject(overrides);
+    const before = await fs.readFile(p.statePath, 'utf8');
+    await withFakeToki([{ body: fixture }], async (url, requests) => {
+      await assert.rejects(main({ ...p, tokiBaseUrl: url, now: NOW, collectOptions: noSleep, ...quiet }));
+      assert.equal(requests.length, 0);
+    });
+    assert.equal(await fs.readFile(p.statePath, 'utf8'), before);
+  }
+});

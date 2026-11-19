@@ -4,7 +4,8 @@
  */
 import { isoDateInTimeZone, parseMalDateTime } from './tracker.js';
 
-const RECENT_DAYS = 10;
+// Keep a one-day margin inside MAL's roughly 21-day public-history window.
+const RECENT_DAYS = 20;
 
 function addDays(iso, count) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -50,6 +51,20 @@ export function checkHistoryHealth(state, history, now = new Date()) {
       warnings,
     };
   }
-  if (unparseable > 0) warnings.push(`${unparseable} of ${rows.length} history rows had no readable date and were skipped.`);
+
+  // Toki's documented schema permits date=null, but a non-null, unparsable string means its
+  // timestamp format has changed. Do not import only part of the response in that case.
+  const invalidDateStrings = rows.filter((row) => row?.date !== null && parseMalDateTime(row?.date, now) === null).length;
+  if (invalidDateStrings > 0) {
+    return {
+      error:
+        `${invalidDateStrings} of ${rows.length} history rows had an invalid non-null date. ` +
+        "Toki's timestamp format may have changed; refusing to import a partial response.",
+      warnings,
+    };
+  }
+
+  const missingDates = rows.filter((row) => row?.date === null).length;
+  if (missingDates > 0) warnings.push(`${missingDates} of ${rows.length} history rows had date=null and were skipped.`);
   return { error: null, warnings };
 }

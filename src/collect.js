@@ -30,7 +30,33 @@ function decodeHistoryPayload(payload, kind) {
     );
   }
 
-  return payload.filter((row) => row && typeof row === 'object' && !Array.isArray(row));
+  // Do not silently drop malformed rows. A successful but incomplete response could otherwise
+  // make an event disappear from MAL's short history window before the next successful poll.
+  for (const [index, row] of payload.entries()) {
+    const rowNumber = index + 1;
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      throw new HistorySourceError(`Toki returned an invalid ${kind} history row at position ${rowNumber}: expected an object.`);
+    }
+
+    const entry = row.mal_url;
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new HistorySourceError(`Toki returned an invalid ${kind} history row at position ${rowNumber}: missing mal_url object.`);
+    }
+    const hasIdentity = (Number.isSafeInteger(entry.mal_id) && entry.mal_id > 0) ||
+      (typeof entry.url === 'string' && entry.url.trim() !== '');
+    if (!hasIdentity) {
+      throw new HistorySourceError(`Toki returned an invalid ${kind} history row at position ${rowNumber}: mal_url has no usable ID or URL.`);
+    }
+
+    if (!Number.isSafeInteger(row.increment)) {
+      throw new HistorySourceError(`Toki returned an invalid ${kind} history row at position ${rowNumber}: increment must be an integer.`);
+    }
+    if (!Object.hasOwn(row, 'date') || (row.date !== null && typeof row.date !== 'string')) {
+      throw new HistorySourceError(`Toki returned an invalid ${kind} history row at position ${rowNumber}: date must be a string or null.`);
+    }
+  }
+
+  return payload;
 }
 
 // Toki forwards MAL's HTTP status (429/403/404...) and uses 500 for its own network/parse errors,
