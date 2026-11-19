@@ -37,7 +37,8 @@
     "9ec4c8f2f7e5ab9be29815c9ea02540b1d90c43ca8b0d1f0b32dc6d6c814c91c": "2026-11-13",
     "b2fe7a6bb691660bf2f833f64955e141b243fcceeee57fd98fc8693cab24ee18": "2026-11-13",
     "30f77df69337300da56b687b1cf180f9f19b7ea36a7abda0c9cd9fee1a92b862": "2026-10-26",
-    "3a944db6bbbd89bef4236bf101afe5e9c75fe13e5e311109b8fc160278b791ff": "2026-11-09"
+    "3a944db6bbbd89bef4236bf101afe5e9c75fe13e5e311109b8fc160278b791ff": "2026-11-09",
+    "f0e2477965b6b97ee5a286b58470c426b07c21a7657cf2f0a4b45fff07de830b": "2026-11-19"
   },
   "daily": {
     "2019-08-10": {
@@ -3844,6 +3845,12 @@
       "anime": 3,
       "manga": 0,
       "total": 3
+    },
+    "2026-11-19": {
+      "anime": 12,
+      "manga": 0,
+      "total": 12
     }
-  }
+  },
+  "last_change_at": "2026-11-19T18:01:11+07:00"
 }
