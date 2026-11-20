@@ -6,7 +6,7 @@ on:
   # skip scheduled runs, and disables them after 60 days without repository activity, so it must
   # not be the only trigger. Once a day at 00:17 Thailand time keeps backup requests low.
   schedule:
-    - cron: '17 0 * * *'
+    - cron: '15 2 * * *'
       timezone: 'Asia/Bangkok'
   workflow_dispatch:
   push:
