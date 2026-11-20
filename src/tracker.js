@@ -3,6 +3,10 @@ import { createHash } from 'node:crypto';
 
 const BANGKOK_TIME_ZONE = 'Asia/Bangkok';
 
+// Historical baseline is curated from the user's 2026 watch log. Automatic MAL imports
+// must never add events before this date. The pre-cutoff 2026 entries remain as baseline data.
+export const AUTO_SYNC_START_DATE = '2026-10-26';
+
 function stableStringify(value) {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
   if (value && typeof value === 'object') {
@@ -87,7 +91,14 @@ function entryIdentity(row) {
  * `legacyFingerprint` is the old time-of-day based hash. It is only used to recognise events that
  * were stored before the date-based fingerprint existed, so upgrading never re-counts old history.
  */
-export function normalizeHistory(historyByKind, now = new Date()) {
+export function normalizeHistory(historyByKind, now = new Date(), minimumDate = AUTO_SYNC_START_DATE) {
+  if (typeof minimumDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(minimumDate)) {
+    throw new TypeError('minimumDate must be a valid YYYY-MM-DD date.');
+  }
+  const parsedMinimumDate = new Date(`${minimumDate}T00:00:00.000Z`);
+  if (!Number.isFinite(parsedMinimumDate.getTime()) || parsedMinimumDate.toISOString().slice(0, 10) !== minimumDate) {
+    throw new TypeError('minimumDate must be a valid YYYY-MM-DD date.');
+  }
   const provisional = [];
   // Only anime episodes are counted; any manga rows passed in are ignored.
   for (const kind of ['anime']) {
@@ -98,7 +109,7 @@ export function normalizeHistory(historyByKind, now = new Date()) {
       if (!Number.isFinite(rawIncrement)) continue;
       const increment = Math.max(0, Math.trunc(rawIncrement));
       const timestamp = parseMalDateTime(row.date, now);
-      if (increment <= 0 || timestamp === null) continue;
+      if (increment <= 0 || timestamp === null || timestamp.date < minimumDate) continue;
       const entry = entryIdentity(row);
       provisional.push({
         kind,
@@ -161,7 +172,8 @@ export function applyHistory(state, historyByKind, now = new Date()) {
     throw new TypeError('State.seen_events must be an object; refusing to reset deduplication history.');
   }
 
-  const normalized = normalizeHistory(historyByKind, now);
+  const minimumDate = state.auto_sync_start_date ?? AUTO_SYNC_START_DATE;
+  const normalized = normalizeHistory(historyByKind, now, minimumDate);
   const added = { anime: 0, manga: 0 };
   const changedDays = new Set();
   let importedEvents = 0;

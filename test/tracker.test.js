@@ -17,6 +17,35 @@ test('first run backfills visible recent history and ignores manga', () => {
   assert.ok(updated.first_import_at);
 });
 
+
+test('automatic imports ignore events before 2026-10-26 but keep the historical baseline', () => {
+  const state = {
+    schema_version: 2,
+    username: 'TiMEZ4I3eth',
+    auto_sync_start_date: '2026-10-26',
+    seen_events: {},
+    daily: { '2026-01-10': { anime: 13, manga: 0, total: 13 } },
+  };
+  const history = {
+    anime: [
+      { mal_url: { mal_id: 10 }, increment: 12, date: '2026-10-25T10:00:00+00:00' },
+      { mal_url: { mal_id: 11 }, increment: 3, date: '2026-10-26T10:00:00+00:00' },
+    ],
+  };
+
+  const { summary } = applyHistory(state, history, BANGKOK_NOW);
+  assert.equal(summary.events_seen, 1);
+  assert.equal(summary.events_added, 1);
+  assert.equal(summary.anime_added, 3);
+  assert.deepEqual(state.daily['2026-01-10'], { anime: 13, manga: 0, total: 13 });
+  assert.deepEqual(state.daily['2026-10-26'], { anime: 3, manga: 0, total: 3 });
+  assert.equal(Object.keys(state.seen_events).length, 1);
+});
+
+test('normalizeHistory rejects an invalid automatic-sync start date', () => {
+  assert.throws(() => normalizeHistory({ anime: [] }, BANGKOK_NOW, '2026-02-30'), /minimumDate/);
+});
+
 test('repeated poll does not double-count same history', () => {
   const state = { schema_version: 2, username: 'TiMEZ4I3eth', seen_events: {}, daily: {} };
   const history = { anime: [{ mal_url: { url: 'https://myanimelist.net/anime/1535' }, increment: 3, date: '2026-11-14T10:00:00+00:00' }], manga: [] };

@@ -38,6 +38,9 @@ function validatePersistentState(state, username) {
   if (!isObjectRecord(state.seen_events)) {
     throw new Error('state.json seen_events must be an object. Refusing to reset deduplication history. Nothing was changed.');
   }
+  if (state.auto_sync_start_date !== undefined && !isValidIsoDate(state.auto_sync_start_date)) {
+    throw new Error('state.json auto_sync_start_date must be a valid YYYY-MM-DD date. Nothing was changed.');
+  }
 
   for (const [date, record] of Object.entries(state.daily)) {
     if (!isValidIsoDate(date)) {

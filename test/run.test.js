@@ -136,6 +136,7 @@ test('run: malformed state containers are refused before any request or write', 
     { daily: [] },
     { seen_events: null },
     { schema_version: 1 },
+    { auto_sync_start_date: '2026-02-30' },
     { daily: { '2026-11-31': { anime: 1, manga: 0, total: 1 } } },
     { daily: { '2026-11-17': { anime: '3', manga: 0, total: 3 } } },
   ]) {
