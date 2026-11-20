@@ -313,8 +313,10 @@ export async function writeSite(state, username, outputDir, options = {}) {
   // profile. Each calendar year also gets a permanent PNG (heatmap-YYYY.png); the current year
   // stops at today.
   await renderHeatmapPng(username, rolling.cells, rolling.start, path.join(outputDir, 'heatmap.png'));
+  const yearlyViews = {};
   for (const year of years) {
     const calendar = makeYearCalendarData(daily, year, year === currentYear ? today : null);
+    yearlyViews[year] = { start: calendar.start, cells: calendar.cells };
     await renderHeatmapPng(username, calendar.cells, calendar.start, path.join(outputDir, `heatmap-${year}.png`), {
       title: `${username} - MAL CONTRIBUTIONS ${year}`,
       periodLabel: `IN ${year}`,
@@ -329,6 +331,11 @@ export async function writeSite(state, username, outputDir, options = {}) {
     range_start: rolling.cells[0].date,
     range_end: today,
     daily: rolling.cells,
+    // Preserve the existing daily array and publish only date/count data for interactive tooltips.
+    calendar_views: {
+      last: { start: rolling.start, cells: rolling.cells },
+      years: yearlyViews,
+    },
     first_import_at: state.first_import_at ?? null,
     last_sync_at: options.generatedAt ?? now.toISOString(),
     last_change_at: state.last_change_at ?? null,
@@ -339,6 +346,8 @@ export async function writeSite(state, username, outputDir, options = {}) {
   const bbcode = `[img]${imageUrl}[/img]`;
   const escapedBbcode = escapeHtml(bbcode);
   const bbcodeJson = JSON.stringify(bbcode).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
+  const calendarViewsJson = JSON.stringify(data.calendar_views)
+    .replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
   const escapedUsername = escapeHtml(username);
   // Keep the public page visually identical to the compact MAL-style PNG.
   // The page intentionally contains no GitHub-like profile header or summary cards.
@@ -356,6 +365,11 @@ body{min-height:100vh;padding:64px 16px 32px;display:flex;justify-content:center
 main{width:min(880px,100%)}
 a{display:block;line-height:0}
 img{display:block;width:100%;height:auto;border:0}
+.heatmap-wrap{position:relative;width:100%;line-height:0}
+.heatmap-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.heatmap-overlay rect[data-date]{fill:transparent;pointer-events:all;cursor:default;outline:none}
+.heatmap-overlay rect[data-date]:focus{stroke:#e6edf3;stroke-width:1.5;fill:rgba(230,237,243,.12)}
+.heatmap-tooltip{position:absolute;z-index:5;display:none;max-width:min(280px,calc(100% - 12px));padding:7px 10px;background:#30363d;border:1px solid #484f58;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.35);color:#f0f6fc;font:12px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;pointer-events:none}
 .share{margin-top:14px;padding:13px 14px;background:#0b0f15;border:1px solid #1d2733;border-radius:5px;color:#d6e2ef;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
 .share-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
 .share-tools{display:flex;align-items:center;gap:8px}
@@ -376,9 +390,13 @@ img{display:block;width:100%;height:auto;border:0}
 </head>
 <body>
 <main>
-  <a id="heatmap-image-link" href="heatmap.png" aria-label="Open full-size MAL contributions heatmap">
-    <img id="heatmap-image" src="heatmap.png" alt="${escapedUsername} MyAnimeList anime episodes in the last year" width="979" height="229">
-  </a>
+  <div class="heatmap-wrap" id="heatmap-wrap">
+    <a id="heatmap-image-link" href="heatmap.png" aria-label="Open full-size MAL contributions heatmap">
+      <img id="heatmap-image" src="heatmap.png" alt="${escapedUsername} MyAnimeList anime episodes in the last year" width="979" height="229">
+    </a>
+    <svg id="heatmap-overlay" class="heatmap-overlay" role="group" aria-label="Daily anime episode counts"></svg>
+    <div id="heatmap-tooltip" class="heatmap-tooltip" role="status" aria-live="polite"></div>
+  </div>
   <section class="share" aria-labelledby="share-title">
     <div class="share-head">
       <div>
@@ -404,20 +422,135 @@ img{display:block;width:100%;height:auto;border:0}
 <script>
 (() => {
   const bbcode = ${bbcodeJson};
+  const calendars = ${calendarViewsJson};
   const button = document.getElementById('copy-bbcode');
   const status = document.getElementById('copy-status');
   const yearSelect = document.getElementById('year-select');
   const image = document.getElementById('heatmap-image');
   const imageLink = document.getElementById('heatmap-image-link');
   const pngLink = document.getElementById('png-link');
-  yearSelect.addEventListener('change', () => {
-    const value = yearSelect.value;
+  const wrapper = document.getElementById('heatmap-wrap');
+  const overlay = document.getElementById('heatmap-overlay');
+  const tooltip = document.getElementById('heatmap-tooltip');
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const CELL = 13;
+  const STEP = 17;
+  const LEFT = 54;
+  const TOP = 76;
+  let activeCell = null;
+
+  function dateFromIso(value) {
+    return new Date(value + 'T00:00:00Z');
+  }
+
+  function tooltipText(cell) {
+    const count = Number(cell.anime ?? cell.total ?? 0);
+    const parts = new Intl.DateTimeFormat('en-US', {
+      month: 'long', day: 'numeric', timeZone: 'UTC'
+    }).formatToParts(dateFromIso(cell.date));
+    const month = parts.find((part) => part.type === 'month')?.value ?? '';
+    const day = Number(parts.find((part) => part.type === 'day')?.value ?? 0);
+    const lastTwo = day % 100;
+    const suffix = lastTwo >= 11 && lastTwo <= 13 ? 'th'
+      : day % 10 === 1 ? 'st' : day % 10 === 2 ? 'nd' : day % 10 === 3 ? 'rd' : 'th';
+    const date = month + ' ' + day + suffix;
+    if (count === 0) return 'No Episodes on ' + date;
+    return count + (count === 1 ? ' Episode on ' : ' Episodes on ') + date;
+  }
+
+  function positionTooltip(target) {
+    const wrapRect = wrapper.getBoundingClientRect();
+    const cellRect = target.getBoundingClientRect();
+    tooltip.style.display = 'block';
+    const tipRect = tooltip.getBoundingClientRect();
+    let left = cellRect.left - wrapRect.left + cellRect.width / 2 - tipRect.width / 2;
+    left = Math.max(6, Math.min(left, wrapRect.width - tipRect.width - 6));
+    let top = cellRect.top - wrapRect.top - tipRect.height - 9;
+    if (top < 4) top = cellRect.bottom - wrapRect.top + 9;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  }
+
+  function showTooltip(target) {
+    if (!target?.dataset?.date) return;
+    activeCell = target;
+    tooltip.textContent = target.getAttribute('aria-label');
+    positionTooltip(target);
+  }
+
+  function hideTooltip() {
+    activeCell = null;
+    tooltip.style.display = 'none';
+  }
+
+  function renderOverlay(view) {
+    overlay.replaceChildren();
+    hideTooltip();
+    if (!view?.cells?.length) return;
+
+    const start = dateFromIso(view.start);
+    const last = dateFromIso(view.cells[view.cells.length - 1].date);
+    const weekEnd = new Date(last);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6 - weekEnd.getUTCDay());
+    const weeks = Math.floor((weekEnd - start) / 86400000 / 7) + 1;
+    const drawnWeeks = Math.max(53, weeks);
+    const width = LEFT + drawnWeeks * STEP + 24;
+    const height = 62 + 7 * STEP + 48;
+    overlay.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+
+    const fragment = document.createDocumentFragment();
+    for (const cell of view.cells) {
+      const date = dateFromIso(cell.date);
+      const offset = Math.floor((date - start) / 86400000);
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('x', String(LEFT + Math.floor(offset / 7) * STEP));
+      rect.setAttribute('y', String(TOP + date.getUTCDay() * STEP));
+      rect.setAttribute('width', String(CELL));
+      rect.setAttribute('height', String(CELL));
+      rect.setAttribute('rx', '2');
+      rect.setAttribute('data-date', cell.date);
+      rect.setAttribute('data-count', String(Number(cell.anime ?? cell.total ?? 0)));
+      rect.setAttribute('aria-label', tooltipText(cell));
+      rect.setAttribute('tabindex', '0');
+      rect.setAttribute('role', 'img');
+      fragment.appendChild(rect);
+    }
+    overlay.appendChild(fragment);
+  }
+
+  overlay.addEventListener('pointerover', (event) => {
+    const target = event.target.closest?.('rect[data-date]');
+    if (target) showTooltip(target);
+  });
+  overlay.addEventListener('pointermove', (event) => {
+    const target = event.target.closest?.('rect[data-date]');
+    if (target && target === activeCell) positionTooltip(target);
+  });
+  overlay.addEventListener('pointerleave', hideTooltip);
+  overlay.addEventListener('focusin', (event) => {
+    const target = event.target.closest?.('rect[data-date]');
+    if (target) showTooltip(target);
+  });
+  overlay.addEventListener('focusout', (event) => {
+    if (!overlay.contains(event.relatedTarget)) hideTooltip();
+  });
+  overlay.addEventListener('click', (event) => {
+    const target = event.target.closest?.('rect[data-date]');
+    if (target) showTooltip(target);
+  });
+
+  function selectView(value) {
     const file = value === 'last' ? 'heatmap.png' : 'heatmap-' + value + '.png';
     image.src = file;
     image.alt = ${JSON.stringify(username)} + ' MyAnimeList anime episodes ' + (value === 'last' ? 'in the last year' : 'in ' + value);
     imageLink.href = file;
     pngLink.href = file;
-  });
+    const view = value === 'last' ? calendars.last : calendars.years[value];
+    renderOverlay(view);
+  }
+
+  renderOverlay(calendars.last);
+  yearSelect.addEventListener('change', () => selectView(yearSelect.value));
   button.addEventListener('click', async () => {
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');

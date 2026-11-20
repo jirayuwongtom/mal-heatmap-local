@@ -116,7 +116,16 @@ test('writes rolling PNG, permanent yearly archives, activity JSON, and period s
     assert.equal(activity.range_start, '2025-11-16');
     assert.equal(activity.range_end, '2026-11-16');
     assert.equal(activity.daily.length, 366);
+    assert.equal(activity.calendar_views.last.start, '2025-11-16');
+    assert.equal(activity.calendar_views.last.cells.find((cell) => cell.date === '2026-11-16').anime, 2);
+    assert.equal(activity.calendar_views.years['2026'].cells.find((cell) => cell.date === '2026-01-03').anime, 2);
     assert.ok(html.includes('<img id="heatmap-image" src="heatmap.png"'));
+    assert.ok(html.includes('id="heatmap-overlay"'));
+    assert.ok(html.includes('id="heatmap-tooltip"'));
+    assert.ok(html.includes('No Episodes on '));
+    assert.ok(html.includes(' Episodes on '));
+    assert.ok(html.includes('formatToParts(dateFromIso(cell.date))'));
+    assert.ok(html.includes("const view = value === 'last' ? calendars.last : calendars.years[value]"));
     assert.ok(html.includes('id="year-select"'));
     assert.ok(html.includes('<option value="last" selected>Last 12 months</option>'));
     assert.ok(html.includes("'heatmap-' + value + '.png'"));
