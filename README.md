@@ -1,210 +1,360 @@
-# MAL Contributions — TiMEZ4I3eth (JavaScript Edition)
+# MAL Heatmap — ปฏิทิน Contribution สไตล์ GitHub สำหรับ MyAnimeList
 
-โปรเจกต์ Contribution Calendar สไตล์ GitHub สำหรับ MyAnimeList `TiMEZ4I3eth` เขียนระบบของโปรเจกต์ด้วย **JavaScript (Node.js)** ทั้งหมด และใช้งานฟรีผ่าน GitHub Actions + GitHub Pages
+สร้างปฏิทินสีแบบหน้าโปรไฟล์ GitHub จากจำนวน **Episode อนิเมะที่คุณดูในแต่ละวัน** บน MyAnimeList (MAL) แล้วเผยแพร่เป็นรูป PNG และหน้าเว็บบน GitHub Pages ให้ฝังในโปรไฟล์ MAL ได้ ทำงานอัตโนมัติบน GitHub Actions โดยไม่ต้องมีเซิร์ฟเวอร์ ไม่ต้องใช้ฐานข้อมูล และไม่ต้องใช้รหัสผ่านหรือ API Key ของ MAL
 
-- **Toki** เปิด Recent History สาธารณะของ MAL เป็น JSON (ไม่ใช่ API ทางการ)
-- **cron-job (ภายนอก)** เรียก `workflow_dispatch` ทุก 6 ชั่วโมงเป็นตัวสั่งงานหลัก ส่วน Schedule ใน GitHub Actions เป็นตัวสำรองวันละครั้งเวลา 00:17 น. ตามเวลาไทย
-- **GitHub Actions** เรียก Toki ชั่วคราวใน Runner แล้วดึงประวัติ
-- **Node.js** ดึงข้อมูล, ตรวจรายการซ้ำ, บันทึกยอดรายวัน, สร้าง PNG และเว็บไซต์
-- **Git repository** เก็บยอดรายวันและ Fingerprint ของรายการที่นำเข้าแล้ว เพื่อไม่ให้นับซ้ำ
-- **GitHub Pages** เผยแพร่หน้า Calendar และ `heatmap.png`
-- ไม่ต้องใช้ Python, VPS, Turso, MAL Client ID หรือรหัสผ่าน MAL
+![ตัวอย่าง Heatmap](docs/example-heatmap.png)
 
-> Toki เป็นโปรแกรม Go ของบุคคลที่สามซึ่ง Workflow Build และเปิดเป็นบริการชั่วคราวใน GitHub Runner เท่านั้น ส่วนโค้ดที่ดูแลโปรเจกต์นี้ทั้งหมดอยู่ใน JavaScript ไม่มี Python และไม่มีไลบรารี npm ภายนอก
+> รูปด้านบนสร้างจากข้อมูลสมมุติ ไม่ใช่ข้อมูลของบัญชีจริง
 
-## ทำไมต้องใช้ Toki แทน MAL API v2?
+## สารบัญ
 
-MAL API v2 ทางการให้ข้อมูลรายการ Anime/Manga และ Progress ปัจจุบัน แต่ไม่ได้เปิด Activity History ที่บอกวันที่ดู Episode หรืออ่าน Chapter ทีละกิจกรรมโดยตรง จึงไม่เพียงพอสำหรับทำ Contribution Calendar รายวันแบบย้อนหลัง
+1. [ทำงานอย่างไร](#ทำงานอย่างไร)
+2. [สิ่งที่ต้องมี](#สิ่งที่ต้องมี)
+3. [เริ่มใช้กับบัญชี MAL ของคุณ](#เริ่มใช้กับบัญชี-mal-ของคุณ)
+4. [ตั้งให้รันอัตโนมัติด้วย cron-job.org](#ตั้งให้รันอัตโนมัติด้วย-cron-joborg)
+5. [PAT หมดอายุ หรือย้ายเครื่อง/ย้ายบริการ ต้องทำอย่างไร](#pat-หมดอายุ-หรือย้ายเครื่องย้ายบริการ-ต้องทำอย่างไร)
+6. [วิธีนับ Contribution](#วิธีนับ-contribution)
+7. [ช่วงเวลาที่แสดงและรูปรายปี](#ช่วงเวลาที่แสดงและรูปรายปี)
+8. [ข้อมูลที่เก็บและความเป็นส่วนตัว](#ข้อมูลที่เก็บและความเป็นส่วนตัว)
+9. [ระบบป้องกันข้อผิดพลาด](#ระบบป้องกันข้อผิดพลาด)
+10. [แก้ปัญหาเบื้องต้น](#แก้ปัญหาเบื้องต้น)
+11. [ข้อจำกัด](#ข้อจำกัด)
+12. [พัฒนาและทดสอบในเครื่อง](#พัฒนาและทดสอบในเครื่อง)
+13. [โครงสร้างไฟล์](#โครงสร้างไฟล์)
+14. [แหล่งอ้างอิง](#แหล่งอ้างอิง)
 
-โปรเจกต์นี้จึงใช้ Toki เป็นตัวอ่าน **Public Recent History** ของ MAL แล้วเก็บข้อมูลไว้เอง Toki เป็นโปรเจกต์ Unofficial ที่อ่านหน้า MAL สาธารณะ ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก MyAnimeList และอาจต้องแก้ไขหาก MAL เปลี่ยนหน้าเว็บ
+## ทำงานอย่างไร
 
-Toki จะถูกดาวน์โหลดและรันชั่วคราวภายใน GitHub Actions Runner แต่ละครั้ง ไม่ได้เปิด Server ค้างไว้บนอินเทอร์เน็ต
-
-## ประวัติย้อนหลังเดิม
-
-MAL ระบุว่าประวัติสาธารณะที่ผู้ใช้อื่นมองเห็นได้มีเพียง **3 สัปดาห์ (ประมาณ 21 วัน)** หลังจากนั้นกิจกรรมเก่าจะถูกซ่อน
-
-- **การรันครั้งแรก:** นำเข้าประวัติ Anime ทั้งหมดที่ MAL ยังเปิดเผยในขณะนั้น แล้วบันทึกเป็น Contribution ตามวันที่จริง
-- **การรันครั้งต่อไป:** ดึง Recent History ชุดเดิมที่ยังมองเห็นได้ทุกรอบที่ถูกสั่งงาน และเพิ่มเฉพาะรายการที่ไม่เคยบันทึก เพื่อไม่ให้นับซ้ำ
-- **ประวัติที่เก่ากว่า 21 วัน:** Toki ดึงจากหน้า Recent History ปัจจุบันไม่ได้ แต่ข้อมูลปี 2026 ก่อนวันเริ่ม Sync อัตโนมัติที่อยู่ใน `data/state.json` มาจากรายการที่ผู้ใช้ยืนยันใน Excel ไม่ใช่การคาดเดาจาก Toki
-- เมื่อข้อมูลถูกบันทึกลง `data/state.json` แล้ว จะเก็บยอดสะสมต่อไป แม้รายการนั้นจะหายจากหน้าประวัติ MAL ในภายหลัง
-
-> หมายเหตุ: การนำเข้าครั้งแรกจะสำเร็จเท่าที่ Toki อ่านจากหน้า History สาธารณะได้จริง หาก MAL ปิดบังข้อมูลหรือป้องกันคำขอ Workflow จะหยุดโดยไม่บันทึกสถานะใหม่ เพื่อไม่ให้เกิดข้อมูลหายเงียบ ๆ
-
-## ข้อมูลตั้งต้นปี 2026 และวันเริ่ม Sync อัตโนมัติ
-
-- `data/state.json` ใช้รายการที่ยืนยันจากไฟล์ `Anime List 2026.xlsx` เป็นยอดตั้งต้นของปี 2026 โดยนำคอลัมน์วันที่ซึ่งแสดงปี พ.ศ. 2569 มาแปลงเป็น ค.ศ. 2026 ก่อนจัดกลุ่มรายวัน
-- ข้อมูลตั้งต้นมี 137 รายการ รวม 1,462 Episodes ใน 134 วัน ระหว่าง 10 มกราคม ถึง 19 พฤศจิกายน 2026
-- ยอดก่อนวันที่ 26 ตุลาคม 2026 เป็นประวัติย้อนหลังจาก Excel ส่วน Toki จะนำเข้ากิจกรรมใหม่เฉพาะวันที่ 26 ตุลาคม 2026 เป็นต้นไป (`auto_sync_start_date` ใน `data/state.json`)
-- ข้อมูลก่อนปี 2026 ถูกนำออกจาก `daily` แล้ว และจะไม่ถูกสร้างกลับจาก Toki เพราะ Tracker กรองกิจกรรมที่เก่ากว่าวันเริ่ม Sync อัตโนมัติ
-- Fingerprint เดิมของกิจกรรมตั้งแต่ 26 ตุลาคม 2026 เป็นต้นไปยังคงไว้เพื่อป้องกันไม่ให้ประวัติที่ Toki เคยนำเข้าแล้วถูกนับซ้ำ
-
-## ธีมสี
-
-Heatmap ใช้โทนน้ำเงินเข้มไล่ไปฟ้า ทั้งในไฟล์ PNG และหน้าเว็บไซต์:
-
-- ไม่มี Activity: `#161b22`
-- ระดับ 1: `#172f50`
-- ระดับ 2: `#214b78`
-- ระดับ 3: `#2f70ad`
-- ระดับ 4: `#58a6e7`
-
-## ช่วงเวลาที่แสดงและคลังย้อนหลัง
-
-- รูป `heatmap.png` (ที่ฝังในโปรไฟล์ MAL) แสดง **12 เดือนย้อนหลังจนถึงวันนี้** แบบเดียวกับหน้าโปรไฟล์ GitHub: 53 สัปดาห์ เริ่มวันอาทิตย์ วันนี้อยู่คอลัมน์ขวาสุดเสมอ และไม่วาดช่องของวันที่ยังมาไม่ถึง
-- ระบบสร้างไฟล์ปีปฏิทินถาวรแยกปี เช่น `heatmap-2026.png` และ `heatmap-2027.png` (ปีปัจจุบันแสดงถึงวันนี้) ข้อมูลของปีก่อนจะไม่หาย
-- หน้าเว็บไซต์มีตัวเลือก VIEW ให้สลับระหว่าง Last 12 months กับแต่ละปี ส่วนปุ่ม Copy BBCode ใช้ URL `heatmap.png` เสมอ
-- หน้า GitHub Pages เพิ่ม Tooltip เมื่อชี้เมาส์หรือเลือกช่อง Heatmap โดยแสดงจำนวน Episode และวันที่ เช่น `13 Episodes on November 18th` ส่วน PNG ที่ใช้บน MAL ยังคงเป็นภาพเดิม ไม่มี Tooltip
-- ป้ายเดือนวางที่สัปดาห์แรกที่วันอาทิตย์ตกในเดือนนั้น และเดือนที่แสดงไม่ถึง 2 คอลัมน์ (เดือนที่ไม่เต็มที่ต้นหรือท้ายกราฟ) จะไม่มีป้าย
-- สีของแต่ละช่องคิดเป็นสัดส่วนของวันที่ดู Episode มากที่สุดในช่วงที่แสดง (แบ่ง 4 ระดับที่ 25 / 50 / 75%) ไม่ใช่เกณฑ์ตายตัว จึงเปลี่ยนไปตามวันที่ดูมากสุดของช่วงนั้น
-- MyAnimeList อาจ Cache รูปภาพที่ฝังไว้ จึงอาจไม่ได้เปลี่ยนภาพทันทีเมื่อไฟล์ `heatmap.png` ถูกอัปเดต
-
-## วิธีนับ Contribution
-
-- 1 Contribution คือ 1 Episode ของ Anime ที่เพิ่ม ตามค่า `increment` ใน Recent History ของ MAL
-- **นับเฉพาะ Anime** ไม่นับ Manga ระบบไม่ดึงประวัติ Manga อีกต่อไป (ค่า `manga` ที่มีอยู่เดิมใน `data/state.json` ยังอยู่ แต่ไม่ถูกนำมาแสดง)
-- วันที่ใช้มาจากประวัติ MAL และแปลงเป็นเขตเวลา `Asia/Bangkok`
-- ใช้ Fingerprint แบบ SHA-256 จาก **เรื่อง + วันที่ (เวลาไทย) + จำนวนตอน** เพื่อจำว่าแต่ละรายการถูกนำเข้าแล้ว โดย**ไม่ใช้เวลาของวัน** จึงไม่นับซ้ำแม้ MAL/Toki แสดงเวลาต่างกันเล็กน้อย และไม่เผยชื่อ Anime ใน `data/state.json` (Fingerprint แบบเก่าที่เก็บไว้แล้วยังใช้ได้ ไม่นับซ้ำ)
-- กิจกรรมซ้ำที่มีรายละเอียดเหมือนกันในคำตอบเดียวกันจะยังถูกนับแยกกันด้วย Duplicate Index
-
-## โครงสร้างไฟล์
+MAL API ทางการไม่เปิดเผยประวัติว่า "ดูตอนไหนเมื่อไหร่" แต่หน้าโปรไฟล์สาธารณะของ MAL แสดง **Recent History** ย้อนหลังประมาณ 21 วัน โปรเจกต์นี้จึงดึงข้อมูลส่วนนั้นมาสะสมเก็บไว้เอง
 
 ```text
-.
-├── .github/workflows/heatmap.yml
-├── data/state.json
-├── src/
-│   ├── health.js
-│   ├── collect.js
-│   ├── tracker.js
-│   ├── render.js
-│   └── run.js
-├── test/
-│   ├── collect.test.js
-│   ├── tracker.test.js
-│   ├── render.test.js
-│   ├── render-calendar.test.js
-│   ├── health.test.js
-│   ├── fixture.test.js
-│   ├── run.test.js
-│   └── fixtures/toki-history.json
-├── package.json
-└── README.md
+cron-job.org ──(ทุก 3 ชั่วโมง เรียก API)──► GitHub Actions: workflow_dispatch
+                                              │
+   (ตัวสำรอง: GitHub schedule วันละครั้ง) ───►│
+                                              ▼
+                 1. รันเทสต์
+                 2. ดาวน์โหลด + Build Toki ชั่วคราวใน Runner
+                 3. Node.js ดึง Recent History จาก Toki
+                 4. ตรวจความผิดปกติ → กันนับซ้ำ → บวกยอดรายวัน
+                 5. Commit data/state.json (เฉพาะเมื่อยอดเปลี่ยน)
+                 6. สร้าง PNG + หน้าเว็บ แล้ว Deploy ขึ้น GitHub Pages
 ```
 
-## ติดตั้ง
+| ส่วนประกอบ | หน้าที่ |
+|---|---|
+| **Toki** ([nyawave/toki](https://github.com/nyawave/toki)) | โปรแกรม Go ของบุคคลที่สาม แปลงหน้า Recent History สาธารณะของ MAL เป็น JSON ไม่ใช่ API ทางการและไม่เกี่ยวข้องกับ MAL จะถูก Build และรันชั่วคราวใน Runner ทุกครั้ง ไม่ได้เปิดค้างบนอินเทอร์เน็ต |
+| **Node.js (โค้ดในโปรเจกต์นี้)** | ดึงข้อมูล ตรวจสอบ กันนับซ้ำ สร้างรูปและเว็บ ไม่มีไลบรารี npm ภายนอก |
+| **`data/state.json`** | ฐานข้อมูลของโปรเจกต์ เก็บยอดรายวันสะสมไว้ใน Git จึงอยู่ต่อแม้ MAL ลบประวัติเก่าทิ้งแล้ว |
+| **GitHub Pages** | เผยแพร่หน้าเว็บและ `heatmap.png` |
+| **cron-job.org** | ตัวสั่งงานหลัก เรียก GitHub ให้เริ่มรันตามเวลา (เพราะ `schedule` ของ GitHub เลื่อนหรือข้ามรอบได้) |
+| **GitHub `schedule`** | ตัวสำรองวันละครั้ง เผื่อ cron-job.org หยุดทำงาน |
 
-### 1. อัปเดต Repository เดิม
+## สิ่งที่ต้องมี
 
-1. Repository คือ [`jirayuwongtom/mal-heatmap-local`](https://github.com/jirayuwongtom/mal-heatmap-local)
-2. ดาวน์โหลด ZIP ฉบับ JavaScript นี้ แล้วแตกไฟล์
-3. อัปโหลดไฟล์และโฟลเดอร์ทั้งหมดเข้า Repository โดยใช้ Branch `main`
-4. **อย่าลบหรือแทนที่ `data/state.json` ด้วยไฟล์ว่าง** ไฟล์ State ใน ZIP นี้ถูกคัดลอกจากไฟล์แนบล่าสุดของคุณและคงประวัติที่มีอยู่ไว้แล้ว
-5. ลบไฟล์ Python เดิม (`scripts/*.py`, `tests/*.py`, `requirements.txt`) ออกจาก Repository หาก GitHub ไม่ลบไฟล์เดิมให้อัตโนมัติเมื่ออัปโหลดทับ
+- บัญชี GitHub และ **Public Repository** (GitHub Pages แบบฟรีต้องใช้ Public)
+- บัญชี MAL ที่ตั้ง **โปรไฟล์และ Recent History เป็นสาธารณะ** (ถ้าเป็นส่วนตัว Toki จะอ่านไม่ได้)
+- บัญชี [cron-job.org](https://cron-job.org) (ฟรี) สำหรับสั่งงานอัตโนมัติ
+- สำหรับรันเทสต์ในเครื่อง: Node.js 22 ขึ้นไป (ไม่จำเป็นถ้าใช้แค่บน GitHub)
 
-> ก่อนอัปโหลด แนะนำดาวน์โหลด `data/state.json` จาก Repository เก็บสำรองไว้อีกชุดหนึ่ง
+## เริ่มใช้กับบัญชี MAL ของคุณ
 
-### 2. เปิด GitHub Pages
+ในเอกสารนี้ `<USERNAME>` คือชื่อผู้ใช้ MAL ของคุณ ส่วน `<GITHUB_USER>` และ `<REPO>` คือชื่อบัญชี GitHub และชื่อ Repository ของคุณ
 
-ใน Repository เปิด:
+### 1. Fork หรือคัดลอก Repository
+
+กด **Fork** (หรืออัปโหลดไฟล์ทั้งหมดเข้า Repository ใหม่) โดยให้ Branch หลักชื่อ `main`
+
+### 2. ⚠️ แทนที่ `data/state.json` ด้วยไฟล์เริ่มต้นของคุณ (สำคัญมาก)
+
+ไฟล์ `data/state.json` ที่ติดมากับ Repository ต้นทางคือประวัติของเจ้าของเดิม **ห้ามใช้ต่อ** ให้ลบเนื้อหาแล้วใส่ไฟล์เริ่มต้นนี้แทน:
+
+```json
+{
+  "schema_version": 2,
+  "username": "<USERNAME>",
+  "auto_sync_start_date": "2026-01-01",
+  "seen_events": {},
+  "daily": {}
+}
+```
+
+- `username` ต้องตรงกับชื่อผู้ใช้ MAL (ตัวพิมพ์เล็ก/ใหญ่เหมือนกัน) และตรงกับค่าในขั้นตอนที่ 3 ถ้าไม่ตรงกัน ระบบจะหยุดเพื่อป้องกันการปนข้อมูลคนละบัญชี
+- `auto_sync_start_date` (รูปแบบ `YYYY-MM-DD`) คือ **วันที่เก่าที่สุดที่อนุญาตให้ระบบนำเข้า** กิจกรรมก่อนวันนี้จะถูกข้าม ควรตั้งเป็นวันที่ที่เก่ากว่ากิจกรรมที่ MAL ยังแสดงอยู่ (ประมาณ 21 วันย้อนหลัง) หรือวันที่คุณเริ่มใช้งาน **ควรใส่เองเสมอ** เพราะถ้าไม่ใส่ โค้ดจะใช้ค่าเริ่มต้นภายในซึ่งเป็นวันที่ของเจ้าของเดิม และอาจข้ามกิจกรรมของคุณไปโดยไม่รู้ตัว
+- `seen_events` และ `daily` ปล่อยเป็น `{}` ระบบจะเติมเอง
+
+ถ้าคุณมีประวัติเก่ากว่า 21 วันที่ MAL มองไม่เห็นแล้ว และอยากใส่เอง ให้เพิ่มลงใน `daily` ด้วยตัวเอง รูปแบบต่อวันคือ `"2026-01-10": { "anime": 3, "manga": 0, "total": 3 }` (`total` ต้องเท่ากับ `anime`) แล้วตั้ง `auto_sync_start_date` เป็นวันที่ **หลัง** ช่วงที่คุณกรอกเอง เพื่อไม่ให้ระบบนับซ้ำกับสิ่งที่กรอก
+
+### 3. ตั้งชื่อผู้ใช้ MAL ใน Workflow
+
+เปิด `.github/workflows/heatmap.yml` แล้วแก้ในขั้นตอน `Backfill recent MAL history, update calendar, and render site`:
+
+```yaml
+env:
+  MAL_USERNAME: <USERNAME>
+```
+
+> ใน `src/run.js` มีค่าสำรอง (fallback) เป็นชื่อผู้ใช้ของเจ้าของเดิมอยู่ด้วย แต่จะไม่ถูกใช้ตราบใดที่ Workflow ตั้ง `MAL_USERNAME` ไว้ ควรแก้ให้เป็นของคุณเพื่อความสะอาด
+
+### 4. เปิด GitHub Pages
 
 **Settings → Pages → Build and deployment → Source → GitHub Actions**
 
-### 3. สั่งทำงาน
+### 5. (แนะนำ) Pin เวอร์ชัน Toki
 
-1. เปิดแท็บ **Actions**
-2. เลือก Workflow ชื่อ **Build MAL Contributions**
-3. กด **Run workflow**
-4. รอให้ Job ทดสอบ JavaScript, Build Toki, ดึงประวัติ, สร้างภาพ และ Deploy จบ
+Toki เป็นโค้ดบุคคลที่สามที่ถูกรันใน Runner การ Pin ให้ใช้เฉพาะโค้ดที่คุณตรวจแล้ว:
 
-หลังจากนั้น cron-job ภายนอกจะสั่งทุก 6 ชั่วโมง และ Scheduled Workflow สำรองจะทำงานวันละครั้งเวลา 00:17 น. ตามเวลาไทย (ตั้งเขตเวลา `Asia/Bangkok`) คุณสามารถกด Run workflow เองหลังอัปเดต MAL ได้เช่นกัน
+1. รันครั้งแรกโดยไม่ตั้งค่า แล้วดู Log ขั้นตอน `Download Toki history adapter` จะมีบรรทัด `::warning::` พร้อม SHA ที่ใช้อยู่
+2. ตรวจโค้ดของ Toki ที่ SHA นั้น
+3. ไปที่ **Settings → Secrets and variables → Actions → Variables** สร้าง Variable ชื่อ `TOKI_COMMIT` ค่าเป็น SHA 40 ตัวอักษร (ตัวพิมพ์เล็ก)
 
-### 4. ไม่มี API Secret ให้ตั้งค่า
+### 6. รันครั้งแรก
 
-Toki อ่านข้อมูลสาธารณะ จึงไม่จำเป็นต้องใส่ MAL Client ID, MAL Client Secret, MAL Password, Cookie หรือ Token ลงใน GitHub Secrets
+เปิดแท็บ **Actions → Build MAL Contributions → Run workflow** (Branch `main`) รอจนทุกขั้นตอนเป็นสีเขียว แล้วเปิดเว็บ:
 
-## ทดสอบในเครื่อง
+- เว็บไซต์: `https://<GITHUB_USER>.github.io/<REPO>/`
+- รูปภาพ: `https://<GITHUB_USER>.github.io/<REPO>/heatmap.png`
+- BBCode สำหรับโปรไฟล์ MAL: `[img]https://<GITHUB_USER>.github.io/<REPO>/heatmap.png[/img]` (หน้าเว็บมีปุ่ม **Copy BBCode** ให้)
 
-ต้องมี Node.js 22 ขึ้นไป:
+ในการรันครั้งแรก ระบบจะนำเข้าทุกอย่างที่ MAL แสดงอยู่ในช่วง ~21 วัน (ไม่เก่ากว่า `auto_sync_start_date`) ถ้าโปรไฟล์เป็นส่วนตัวหรือ MAL บล็อก Runner Workflow จะหยุดโดยไม่บันทึกอะไร
+
+หลังจากนี้ให้ตั้งให้รันอัตโนมัติตามหัวข้อถัดไป
+
+## ตั้งให้รันอัตโนมัติด้วย cron-job.org
+
+ตัวสั่งงานหลักคือ cron-job.org ที่เรียก GitHub API เพื่อเริ่ม Workflow (`workflow_dispatch`) ทุก 3 ชั่วโมง
+
+### A. สร้าง Personal Access Token (PAT)
+
+1. GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
+2. **Resource owner:** บัญชีของคุณ
+3. **Expiration:** เลือกวันหมดอายุ (**จดวันนี้ไว้ในปฏิทิน** ดูหัวข้อ [PAT หมดอายุ](#pat-หมดอายุ-หรือย้ายเครื่องย้ายบริการ-ต้องทำอย่างไร))
+4. **Repository access:** *Only select repositories* → เลือกเฉพาะ `<REPO>`
+5. **Permissions → Repository permissions → Actions: Read and write** (สิทธิ์อื่นไม่ต้องให้)
+6. กด Generate แล้ว **คัดลอก Token เก็บไว้ทันที** (ขึ้นให้ดูครั้งเดียว ขึ้นต้นด้วย `github_pat_`)
+
+> Token ใช้สั่ง Workflow ได้เท่านั้น ห้ามใส่ลงใน Repository, Issue, ภาพหน้าจอ หรือที่สาธารณะใดๆ ถ้าเผลอเปิดเผยให้ลบ (Revoke) ทันทีแล้วสร้างใหม่
+
+### B. (แนะนำ) ทดสอบ Token ด้วย curl ก่อน
+
+```bash
+curl -i -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  -d '{"ref":"main"}' \
+  https://api.github.com/repos/<GITHUB_USER>/<REPO>/actions/workflows/heatmap.yml/dispatches
+```
+
+ถ้าสำเร็จจะได้ **`HTTP/2 204`** (ไม่มีเนื้อหาตอบกลับ) และมีรอบใหม่ขึ้นในแท็บ Actions
+
+### C. สร้าง Cronjob ที่ cron-job.org
+
+**แท็บ COMMON**
+
+| ช่อง | ค่า |
+|---|---|
+| Title | ชื่ออะไรก็ได้ เช่น `mal-heatmap` |
+| URL | `https://api.github.com/repos/<GITHUB_USER>/<REPO>/actions/workflows/heatmap.yml/dispatches` |
+| Enable job | เปิด |
+| Save responses in job history | เปิด (ช่วยดูสาเหตุเมื่อล้มเหลว) |
+| Execution schedule | Every 3 hours (Crontab: `0 */3 * * *`) |
+
+**แท็บ ADVANCED**
+
+| ช่อง | ค่า |
+|---|---|
+| Time zone | เขตเวลาของคุณ (มีผลกับเวลาที่รัน) |
+| Request method | `POST` |
+| Request body | `{"ref":"main"}` |
+| Timeout | 30 วินาที |
+| Treat redirects as success | ปิด |
+
+Headers (4 ตัว):
+
+| Key | Value |
+|---|---|
+| `Accept` | `application/vnd.github+json` |
+| `Authorization` | `Bearer <TOKEN>` |
+| `Content-Type` | `application/json` |
+| `X-GitHub-Api-Version` | `2022-11-28` |
+
+**แท็บ NOTIFICATIONS** (แนะนำ)
+
+- เปิด *execution of the cronjob fails* → Notify after **3** subsequent failures
+- เปิด *the cronjob will be disabled because of too many failures*
+
+กด **TEST RUN** ต้องได้สถานะสำเร็จ (HTTP 204) และมีรอบใหม่ขึ้นในแท็บ Actions แล้วกด **SAVE**
+
+> ต้องการเปลี่ยนความถี่ แก้ที่ cron-job.org ได้อย่างเดียว ไม่ต้องแก้โค้ด MAL เก็บประวัติราว 21 วัน ดังนั้นแม้ตั้งห่างเป็นหลายชั่วโมงก็ไม่ทำให้ข้อมูลหาย เพียงแต่ Heatmap จะอัปเดตช้าลงตามรอบ
+
+### D. ตัวสำรองใน GitHub (ไม่ต้องตั้งค่าเพิ่ม)
+
+`heatmap.yml` มี `schedule` วันละครั้งเวลา **02:15 น. (Asia/Bangkok)** เป็นตัวสำรองเผื่อ cron-job.org หยุด ถ้าอยู่คนละเขตเวลา แก้ได้ที่ค่า `cron` และ `timezone` ในไฟล์นั้น (GitHub รองรับชื่อเขตเวลาแบบ IANA) ข้อควรรู้:
+
+- GitHub อาจหน่วงหรือข้ามรอบของ `schedule` ได้ จึงใช้เป็นตัวสำรองเท่านั้น
+- Repository สาธารณะที่ไม่มีความเคลื่อนไหวนาน 60 วัน GitHub จะปิด `schedule` อัตโนมัติ (การ Commit `data/state.json` เมื่อมียอดใหม่นับเป็นความเคลื่อนไหว) ถ้าถูกปิด ให้เข้าแท็บ Actions แล้วเปิด Workflow อีกครั้ง
+- ถ้า PAT หมดอายุ ตัวสำรองยังรันวันละครั้ง ข้อมูลจึงไม่หาย แต่ Heatmap จะอัปเดตช้าลงมาก ควรรีบเปลี่ยน PAT ตามหัวข้อถัดไป
+
+## PAT หมดอายุ หรือย้ายเครื่อง/ย้ายบริการ ต้องทำอย่างไร
+
+### อาการเมื่อ PAT หมดอายุหรือใช้ไม่ได้
+
+- cron-job.org ได้ HTTP **401** (Token หมดอายุ/ถูกเพิกถอน/พิมพ์ผิด) ใน Job history แล้วส่งอีเมลหลังล้มติดกัน 3 ครั้ง (ถ้าเปิดแจ้งเตือนไว้)
+- Heatmap อัปเดตเหลือแค่ตัวสำรองวันละครั้ง ข้อมูลไม่หายตราบใดที่ยังรันได้อย่างน้อยหนึ่งครั้งในทุก ~20 วัน
+
+### วิธีเปลี่ยน/ต่ออายุ PAT
+
+1. สร้าง Fine-grained PAT ใหม่ตามขั้นตอน [A](#a-สร้าง-personal-access-token-pat) (Repository เดียว, Actions: Read and write)
+2. ทดสอบด้วย curl ตามขั้นตอน [B](#b-แนะนำ-ทดสอบ-token-ด้วย-curl-ก่อน) ให้ได้ `204`
+3. cron-job.org → เปิด Cronjob → แท็บ **ADVANCED** → แก้ค่า Header `Authorization` เป็น `Bearer <TOKEN ใหม่>`
+4. กด **TEST RUN** ให้สำเร็จ แล้วกด **SAVE**
+5. ลบ Token เก่าที่ GitHub (Settings → Developer settings → Fine-grained tokens)
+6. จดวันหมดอายุของ Token ใหม่ลงปฏิทิน (เตือนล่วงหน้าอย่างน้อย 1 สัปดาห์)
+
+### รหัสตอบกลับที่พบบ่อย
+
+| HTTP | ความหมาย | วิธีแก้ |
+|---|---|---|
+| 204 | สำเร็จ | ไม่ต้องทำอะไร |
+| 401 | Token หมดอายุ / ผิด / ถูกเพิกถอน | สร้าง Token ใหม่ตามขั้นตอนด้านบน |
+| 403 | Token ไม่มีสิทธิ์ Actions: Read and write หรือถูกจำกัดการเข้าถึง | แก้สิทธิ์ของ Token |
+| 404 | URL ผิด ชื่อ Repository/Workflow ผิด หรือ Token ไม่ได้รับสิทธิ์กับ Repository นี้ | ตรวจ URL (`<GITHUB_USER>/<REPO>/…/heatmap.yml/dispatches`) และ Repository access ของ Token |
+| 422 | `ref` ผิด หรือ Workflow ไม่มี `workflow_dispatch` | ใช้ `{"ref":"main"}` และตรวจว่าไฟล์ Workflow ยังมี `workflow_dispatch:` |
+
+### ย้ายเครื่องคอมพิวเตอร์
+
+ระบบทั้งหมดทำงานบน GitHub และ cron-job.org ไม่ได้ผูกกับเครื่องของคุณ จึง **ไม่ต้องย้ายหรือตั้งค่าอะไรในระบบ** แค่ `git clone` Repository ไปเครื่องใหม่ ข้อมูลทั้งหมดอยู่ใน Git อยู่แล้ว (ก่อนแก้และ push ควร `git pull` ก่อนเสมอ เพราะ Workflow Commit `data/state.json` เข้า `main` อยู่ตลอด)
+
+### ย้ายไปบัญชี cron-job.org ใหม่ หรือใช้บริการอื่นแทน
+
+สร้างงานใหม่ด้วยค่าตามตารางในขั้นตอน [C](#c-สร้าง-cronjob-ที่-cron-joborg) ได้เลย (บริการใดก็ได้ที่ส่ง HTTP POST พร้อม Header และ Body ตามนั้นได้) ใช้ PAT เดิมหรือสร้างใหม่ก็ได้ แล้วปิดงานเก่าเพื่อไม่ให้ยิงซ้ำ ที่ cron-job.org มีปุ่ม **IMPORT FROM CURL** วางคำสั่ง curl จากขั้นตอน B เข้าไปเพื่อกรอกค่าให้อัตโนมัติได้
+
+### ย้าย Repository / เปลี่ยนชื่อ Repository หรือบัญชี GitHub
+
+- แก้ URL ใน cron-job.org ให้ชี้ไปที่ `<GITHUB_USER>/<REPO>` ใหม่
+- Token ผูกกับ Repository เดิม ถ้าย้ายหรือเปลี่ยนเจ้าของ ให้สร้าง Token ใหม่
+- URL ของหน้าเว็บ รูป และ BBCode บนโปรไฟล์ MAL จะเปลี่ยนตาม ต้องอัปเดตโปรไฟล์ MAL ด้วย
+- อย่าลืมคัดลอก `data/state.json` ไปด้วย (ถ้าหาย ประวัติเก่ากว่า 21 วันจะกู้จาก MAL ไม่ได้)
+
+### เปลี่ยนบัญชี MAL
+
+1. แก้ `MAL_USERNAME` ใน `.github/workflows/heatmap.yml`
+2. แก้ `username` ใน `data/state.json` ให้ตรงกัน
+3. ถ้าเป็นคนละบัญชีจริง ให้ล้าง `seen_events` และ `daily` เป็น `{}` และตั้ง `auto_sync_start_date` ใหม่ เพื่อไม่ให้ประวัติของบัญชีเดิมปน
+
+## วิธีนับ Contribution
+
+- **1 Contribution = 1 Episode ของอนิเมะ** ตามค่า `increment` ในแต่ละแถวของ Recent History
+- **นับเฉพาะอนิเมะ** ไม่นับมังงะ (ไม่ดึงประวัติมังงะ)
+- **วันที่** กำหนดตามเขตเวลา `Asia/Bangkok` (ค่าคงที่ `BANGKOK_TIME_ZONE` ใน `src/tracker.js`) ถ้าต้องการตัดวันตามเขตเวลาอื่น ให้แก้ค่านี้ที่เดียว แล้วรัน `npm test` (ข้อความใน Log ของ `src/run.js` ที่เขียนว่า `(Bangkok)` และบางเทสต์อ้างอิงเขตเวลานี้อยู่ ต้องปรับตามด้วย)
+- **ปรับเวลา Pacific:** MAL แสดงเวลาใน History เป็นเวลา Pacific แต่ Toki ต้นฉบับอ่านเป็น UTC ซึ่งทำให้วันที่เลื่อนผิด Workflow จึงมีขั้นตอน Patch Toki (`sed`) ให้อ่านเป็นเวลา Pacific ถ้าโค้ดต้นทางของ Toki เปลี่ยนจนหาบรรทัดที่ต้อง Patch ไม่เจอ ขั้นตอนนี้จะล้มเหลวให้เห็นชัดเจน
+- **กันนับซ้ำ:** MAL แสดงประวัติเดิมซ้ำทุกรอบ ระบบจึงสร้าง Fingerprint (SHA-256) ของแต่ละกิจกรรมจาก *เรื่อง + วันที่ + จำนวนตอน* เก็บไว้ใน `seen_events` กิจกรรมที่เคยเห็นแล้วจะไม่ถูกนับอีก โดยไม่ใช้ "เวลาของวัน" เพื่อไม่ให้เวลาที่ MAL/Toki แสดงต่างกันเล็กน้อยกลายเป็นรายการใหม่ และไม่เก็บชื่อเรื่อง
+- กิจกรรมที่ซ้ำกันทุกอย่างในคำตอบเดียวกัน (เช่น ดูเรื่องเดียวกัน 1 ตอน 2 ครั้งในวันเดียว) ยังนับแยกกันด้วยลำดับที่ซ้ำ
+- **ประวัติที่ไม่มีปี:** MAL แสดงประวัติเก่าโดยไม่มีปี (เช่น `Dec 28`) Toki เติมปีปัจจุบันให้ ซึ่งช่วงข้ามปีจะกลายเป็นวันในอนาคต ระบบจึงถอยกลับ 1 ปีให้อัตโนมัติถ้าวันที่ที่ได้เกินปัจจุบันมากกว่า 24 ชั่วโมง
+
+## ช่วงเวลาที่แสดงและรูปรายปี
+
+- **`heatmap.png`** (URL คงที่ ใช้ฝังใน MAL) แสดง **12 เดือนย้อนหลังจนถึงวันนี้** แบบหน้าโปรไฟล์ GitHub: 53 สัปดาห์ เริ่มวันอาทิตย์ วันนี้อยู่คอลัมน์ขวาสุดเสมอ ไม่วาดช่องของวันที่ยังไม่ถึง
+- **`heatmap-YYYY.png`** ไฟล์รายปีปฏิทิน (เช่น `heatmap-2026.png`) ข้อมูลของปีก่อนๆ ไม่หาย (ปีปัจจุบันแสดงถึงวันนี้)
+- **หน้าเว็บ** มีตัวเลือก VIEW สลับระหว่าง Last 12 months กับแต่ละปี และ Tooltip เมื่อชี้เมาส์/โฟกัสช่อง แสดงจำนวน Episode กับวันที่ (เช่น `13 Episodes on November 18th`) ส่วนรูป PNG ไม่มี Tooltip
+- **ธีมสี** น้ำเงินเข้มไล่ไปฟ้า: ไม่มีกิจกรรม `#161b22`, ระดับ 1 `#172f50`, ระดับ 2 `#214b78`, ระดับ 3 `#2f70ad`, ระดับ 4 `#58a6e7`
+- **ระดับสีเป็นสัดส่วน:** แบ่ง 4 ระดับที่ 25 / 50 / 75% ของ "วันที่ดูมากที่สุดในช่วงที่แสดง" ไม่ใช่เกณฑ์ตายตัว สีจึงเปลี่ยนตามวันที่ดูมากสุดของช่วงนั้น
+- ป้ายเดือนวางที่สัปดาห์แรกที่วันอาทิตย์ตกในเดือนนั้น และเดือนที่แสดงไม่ถึง 2 คอลัมน์จะไม่มีป้าย
+- MAL อาจแคชรูปที่ฝังไว้ จึงอาจไม่เปลี่ยนทันทีเมื่อไฟล์ถูกอัปเดต
+
+## ข้อมูลที่เก็บและความเป็นส่วนตัว
+
+- Repository เป็น Public ดังนั้นทุกไฟล์ใน Repository (รวมถึงประวัติ Commit) **มองเห็นได้สาธารณะ**
+- `data/state.json` เก็บเฉพาะ **ยอดรายวัน** และ **Hash Fingerprint** ไม่เก็บชื่อเรื่อง URL ของรายการ คะแนน ความเห็น หรือ Tags
+- `site/activity.json` ที่เผยแพร่บนเว็บมีเฉพาะวันที่และยอดอนิเมะรายวัน และเวลารันล่าสุด (`generated_at`, `last_sync_at`)
+- ไฟล์ `data/state.json` จะถูกแก้และ Commit **เฉพาะเมื่อยอดเปลี่ยนจริง** (ไม่มี Commit ว่างทุกรอบ) `last_change_at` ในไฟล์คือเวลาที่ยอดเปลี่ยนล่าสุด
+- Log ของ Actions ใน Repository สาธารณะเปิดดูได้ ระบบจึงไม่พิมพ์ชื่อเรื่องหรือ URL ลง Log (พิมพ์เฉพาะเวลาดิบ → วันที่ที่นับ และจำนวน Episode)
+- **ห้ามใส่รหัสผ่านหรือ Cookie ของ MAL หรือ PAT ลงใน Repository** ระบบนี้ไม่ต้องใช้ Secret ใดๆ ใน GitHub (PAT ของ cron-job.org อยู่ที่ cron-job.org เท่านั้น)
+- **ความปลอดภัยของ Toki:** `actions/checkout` ตั้ง `persist-credentials: false` และ Toki ถูกรันด้วย `env -i` (สภาพแวดล้อมว่าง มองไม่เห็น Token ของ Job) Token ของ Job ถูกใส่ให้ git เฉพาะขั้นตอน Commit เท่านั้น
+
+## ระบบป้องกันข้อผิดพลาด
+
+เป้าหมายคือ "ถ้าผิดปกติ ให้ล้มเหลวให้เห็น ไม่ใช่สำเร็จแบบเงียบๆ แล้วข้อมูลหาย"
+
+- **ตรวจ State ก่อนทำอะไร:** schema, โครงสร้าง `daily`/`seen_events`, รูปแบบวันที่ และยอดที่ต้องเป็นจำนวนเต็มไม่ติดลบ ถ้าไฟล์เสียหายจะหยุดโดยไม่รีเซ็ตประวัติ และไม่ยิงคำขอไป MAL
+- **ดึงข้อมูลสำเร็จก่อนค่อยเขียน:** ถ้าดึงล้มเหลวจะไม่แตะ State
+- **ตรวจผลลัพธ์จาก Toki ว่าสมเหตุสมผล** (`src/health.js`) จะล้มเหลวเมื่อ:
+  - Toki คืน 0 แถว แต่ State มีกิจกรรมใน 20 วันล่าสุด (น่าจะเป็นเพราะ MAL เปลี่ยนหน้า/ซ่อนประวัติ/บล็อก Runner)
+  - ไม่มีแถวใดอ่านวันที่ได้เลย หรือมีวันที่ที่ไม่ใช่ `null` แต่อ่านไม่ได้ (รูปแบบเวลาของ Toki อาจเปลี่ยน)
+  - แถวข้อมูลผิดรูปแบบ (ไม่มี `mal_url`, `increment` ไม่ใช่จำนวนเต็ม ฯลฯ) จะไม่นำเข้าเพียงบางส่วน
+  - กรณีที่ไม่มีกิจกรรมจริงๆ ภายใน ~21 วัน จะขึ้นเป็นเพียง `::warning::`
+- **ลองใหม่อัตโนมัติ:** HTTP 429/500/502/503/504 และปัญหาเครือข่าย ลองใหม่สูงสุด 4 ครั้ง (429 รอตาม `Retry-After` หรือ 30/60/90 วินาที ส่วนอื่นรอ 2/4/8 วินาที)
+- **เขียนไฟล์แบบปลอดภัย:** เขียนไฟล์ชั่วคราวแล้วเปลี่ยนชื่อ (rename) ไฟล์ State จึงไม่มีทางเสียหายครึ่งๆ กลางๆ
+- **Push ซ้ำเมื่อชนกัน:** ถ้า `main` ถูก Push ระหว่างรัน ระบบ Rebase แล้วลองใหม่ได้ 3 ครั้ง
+- **ไม่รันซ้อนกัน:** ใช้ `concurrency` ให้ทำทีละรอบ และ Job ทำงานเฉพาะ Branch `main` (กัน Branch อื่นเผยแพร่เว็บเก่า)
+- **ข้ามตัวตรวจจับชั่วคราว:** ถ้ายอมรับประวัติว่างจริงๆ (เช่น ลบรายการใน MAL เอง) ให้เพิ่ม `ALLOW_EMPTY_HISTORY: '1'` ใน `env` ของขั้นตอน Backfill ชั่วคราว แล้วเอาออกหลังรันผ่าน
+- **ดูวันที่ที่นับใน Log:** ขั้นตอน Backfill พิมพ์ 5 รายการล่าสุดเป็น `เวลาดิบจาก Toki -> วันที่ที่นับ` ใช้ตรวจว่านับวันถูกต้อง
+
+## แก้ปัญหาเบื้องต้น
+
+| อาการ | สาเหตุที่เป็นไปได้ | วิธีแก้ |
+|---|---|---|
+| Workflow ล้มเหลวที่ `Build Toki` | Go หรือโค้ด Toki ต้นทางเปลี่ยน | ดู Log ขั้นตอนนั้น ลอง Pin `TOKI_COMMIT` เป็นเวอร์ชันที่เคยใช้ได้ |
+| ล้มเหลวที่ `Patch Toki...` | โค้ดต้นทางของ Toki เปลี่ยนจนหาบรรทัดที่ต้อง Patch ไม่เจอ | ตรวจ `internal/parser/user.go` ของ Toki แล้วปรับคำสั่ง `sed`; Pin `TOKI_COMMIT` ไว้ก่อน |
+| `Run JavaScript tests` ไม่ผ่าน | โค้ดหรือเทสต์ผิด | ดูชื่อเทสต์และข้อความ error ใน Log |
+| Toki ตอบ HTTP 403 | MAL ปฏิเสธคำขอจาก Runner หรือโปรไฟล์/ประวัติไม่เป็นสาธารณะ | ตรวจการตั้งค่าความเป็นส่วนตัวใน MAL; รอแล้วรันใหม่ |
+| Toki ตอบ HTTP 404 | ชื่อผู้ใช้ผิด | ตรวจ `MAL_USERNAME` และหน้าโปรไฟล์ `https://myanimelist.net/profile/<USERNAME>` |
+| Toki ตอบ HTTP 429 | MAL จำกัดความถี่ชั่วคราว | ระบบรอแล้วลองเองสูงสุด 4 ครั้ง ถ้ายังไม่ผ่านให้รอสักพักแล้วรันใหม่ |
+| "Configured username ... does not match state.json username" | `MAL_USERNAME` กับ `username` ใน `state.json` ไม่ตรงกัน | แก้ให้ตรงกันทั้งสองที่ |
+| "Toki returned 0 history rows, but state.json has anime activity..." | MAL เปลี่ยนหน้า/ซ่อนประวัติ/บล็อก Runner | ตรวจหน้าโปรไฟล์ใน MAL; ถ้ายอมรับประวัติว่างจริงๆ ใช้ `ALLOW_EMPTY_HISTORY` |
+| Deploy Pages ไม่ผ่าน | ยังไม่ได้เลือก Source เป็น GitHub Actions | Settings → Pages → Source → GitHub Actions |
+| ยอดบางวันขาดไปเลย | กิจกรรมเก่ากว่า 21 วันก่อนระบบเริ่มทำงาน หรือเก่ากว่า `auto_sync_start_date` | ข้อจำกัดของ MAL; ใส่ย้อนหลังเองใน `daily` ได้ (ดูขั้นตอนที่ 2) |
+| cron-job.org ล้มเหลว (401/403/404/422) | ดูตารางรหัสตอบกลับด้านบน | ตามวิธีแก้ในหัวข้อ PAT |
+| รันตามเวลาแต่รูปบน MAL ไม่เปลี่ยน | MAL แคชรูป | รอสักพัก; เปิดดูที่ URL ของ GitHub Pages ตรงๆ เพื่อยืนยันว่ารูปใหม่แล้ว |
+
+## ข้อจำกัด
+
+- Toki เป็น **Unofficial Scraper** พึ่งพา HTML ของ MAL ถ้า MAL เปลี่ยนหน้าเว็บหรือปิดกั้น Runner การดึงข้อมูลอาจล้มเหลวจนกว่า Toki จะอัปเดต (ระบบจะล้มเหลวให้เห็น ไม่บันทึกข้อมูลผิด)
+- MAL แสดงประวัติสาธารณะเพียง **~3 สัปดาห์** ถ้าระบบหยุดทำงานนานเกินนั้น กิจกรรมในช่วงที่หยุดจะหายไปถาวร (ระบบตรวจจับด้วยเกณฑ์ 20 วันเพื่อเตือนก่อน)
+- นับเฉพาะอนิเมะ ไม่นับมังงะ
+- Toki ถูก Build ใหม่ทุกครั้งด้วย Go `1.27.4` (Toki ต้องการ Go 1.26 ขึ้นไป) ใช้ 1 History Request ต่อรอบ
+- GitHub Pages ฟรีต้องใช้ Public Repository
+
+## พัฒนาและทดสอบในเครื่อง
+
+ต้องมี Node.js 22 ขึ้นไป
 
 ```bash
 npm test
 ```
 
-คำสั่งนี้รัน Unit Tests โดยไม่เรียก MAL จริง หากต้องการรันตัวเก็บข้อมูลจริง ต้องเปิด Toki ในเครื่องและตั้งค่า:
+รัน Unit Test ทั้งหมดโดย **ไม่เรียก MAL จริง** (ใช้ Toki จำลอง)
+
+หากต้องการรันตัวเก็บข้อมูลจริง ต้องเปิด Toki ในเครื่องก่อน (ดูวิธีที่ [nyawave/toki](https://github.com/nyawave/toki)) แล้วตั้งค่า:
 
 ```bash
-MAL_USERNAME=TiMEZ4I3eth TOKI_BASE_URL=http://127.0.0.1:3000 npm run build
+MAL_USERNAME=<USERNAME> TOKI_BASE_URL=http://127.0.0.1:3000 npm run build
 ```
 
-## URL หลัง Deploy
+ผลลัพธ์อยู่ที่โฟลเดอร์ `site/` (ไม่ถูก Commit) และ `data/state.json` จะถูกอัปเดตด้วย
 
-สำหรับ Repository `jirayuwongtom/mal-heatmap-local`:
-
-เว็บไซต์:
-
-`https://jirayuwongtom.github.io/mal-heatmap-local/`
-
-รูปภาพ:
-
-`https://jirayuwongtom.github.io/mal-heatmap-local/heatmap.png`
-
-BBCode สำหรับใส่ใน MyAnimeList Profile:
+## โครงสร้างไฟล์
 
 ```text
-[img]https://jirayuwongtom.github.io/mal-heatmap-local/heatmap.png[/img]
+.
+├── .github/workflows/heatmap.yml   # Workflow: เทสต์ → Build Toki → ดึงข้อมูล → Commit → Deploy
+├── data/state.json                 # ยอดรายวันสะสม + Fingerprint กันนับซ้ำ
+├── docs/example-heatmap.png        # รูปตัวอย่างในเอกสารนี้ (ข้อมูลสมมุติ)
+├── src/
+│   ├── run.js                      # จุดเริ่มต้น: ตรวจ State → ดึง → อัปเดต → สร้างเว็บ
+│   ├── collect.js                  # ดึงและตรวจ Recent History จาก Toki (ลองใหม่เมื่อผิดพลาดชั่วคราว)
+│   ├── health.js                   # ตรวจว่าผลลัพธ์จาก Toki สมเหตุสมผล
+│   ├── tracker.js                  # แยกวันที่, Fingerprint, กันนับซ้ำ, รวมยอดรายวัน
+│   └── render.js                   # สร้าง PNG, activity.json และหน้าเว็บ
+├── test/                           # Unit Test (node --test) และ fixtures
+├── package.json
+└── README.md
 ```
 
-หน้าเว็บไซต์จะแสดงภาพ Heatmap แบบการ์ดเดี่ยว พื้นหลังสีดำ ไม่มีการ์ดสถิติหรือส่วนหัวโปรไฟล์ โดยภาพจะแสดงที่ความกว้างสูงสุด 880 px และย่ออัตโนมัติบนมือถือ มีตัวเลือก YEAR สำหรับดูภาพรายปีย้อนหลัง และ Tooltip ที่แสดงจำนวน Episode กับวันที่เมื่อชี้เมาส์บนช่อง Heatmap ส่วนไฟล์ PNG ยังคงเหมือนเดิมสำหรับใช้บน MyAnimeList
+## แหล่งอ้างอิง
 
-ใต้ภาพมีส่วน **Use on MyAnimeList Profile** พร้อมปุ่ม **Copy BBCode** ซึ่งคัดลอก `[img]...[/img]` ที่ใช้ URL ของ GitHub Pages ใน Repository นี้ให้โดยอัตโนมัติ พร้อมทางเลือกสำรองสำหรับเบราว์เซอร์ที่ไม่รองรับ Clipboard API
-
-## ข้อมูลและความเป็นส่วนตัว
-
-- GitHub Pages แบบฟรีต้องใช้ Public Repository ดังนั้นไฟล์ใน Repository จะมองเห็นได้สาธารณะ
-- `data/state.json` เก็บยอดกิจกรรมรายวันและ Hash Fingerprints สำหรับกันการนับซ้ำ ไม่เก็บชื่อเรื่อง URL ของรายการ คะแนน ความเห็น หรือ Tags
-- รุ่นนี้คง `schema_version`, `seen_events`, `daily`, `first_import_at` และข้อมูลเดิมใน `data/state.json` โดยไม่รีเซ็ตประวัติ
-- `site/activity.json` ที่เผยแพร่บนเว็บไซต์มีเฉพาะวันที่และยอด Anime รายวัน
-- ห้ามเพิ่มรหัสผ่าน MAL, Cookie หรือ Token ลับใด ๆ ลง Repository
-
-## การทำงานและข้อจำกัด
-
-- `data/state.json` จะถูกแก้และ Commit ก็ต่อเมื่อมียอดเปลี่ยนจริงเท่านั้น (ไม่มี Commit ว่างทุกรอบ) เวลารันล่าสุดดูได้ที่ `last_sync_at` ใน `site/activity.json` ส่วน `last_change_at` ใน State คือเวลาที่ยอดเปลี่ยนล่าสุด
-- MAL แสดงประวัติเก่าโดยไม่มีปี (เช่น `Dec 28`) ระบบแก้ให้อัตโนมัติ: ถ้าวันที่ที่ได้อยู่ในอนาคตเกิน 24 ชั่วโมง จะถอยกลับ 1 ปี เพื่อให้ข้ามปีแล้วไม่นับซ้ำ
-- Scheduled Workflow เป็นเพียงตัวสำรอง (วันละครั้ง เวลา 00:17 น. ตามเวลาไทย) เพราะ GitHub อาจเลื่อนหรือข้ามรอบที่ตั้งเวลาไว้ได้ ตัวสั่งงานหลักคือ cron-job ภายนอกที่เรียก `workflow_dispatch` (ต้องใช้ PAT ที่มีสิทธิ์ Actions: write และตรวจวันหมดอายุของ PAT) โดย Job จะทำงานเฉพาะ Branch `main` เท่านั้น
-- **ตรวจจับความผิดปกติ:** ถ้า Toki คืน 0 รายการ ทั้งที่ `state.json` มีกิจกรรมใน 20 วันล่าสุด, วันที่แบบข้อความอ่านไม่ได้, หรือรูปแบบแถวจาก Toki ไม่ครบ Workflow จะล้มเหลวโดยไม่บันทึกอะไร กรณีไม่มีวันที่ (`null`) บางแถวจะขึ้นคำเตือน ส่วนกรณีไม่มีกิจกรรมจริงจะขึ้นเป็น `::warning::` เท่านั้น
-- **ป้องกัน State เสียหาย:** ก่อนเรียก Toki ระบบตรวจ schema, โครงสร้าง `daily`/`seen_events`, วันที่ และยอดสะสม หากไฟล์เสียรูปแบบจะหยุดโดยไม่รีเซ็ตประวัติเดิม
-- **ข้ามตัวตรวจจับชั่วคราว:** ถ้าต้องการให้ยอมรับประวัติว่างจริง ๆ (เช่น ลบรายการใน MAL เอง) ให้ตั้ง `ALLOW_EMPTY_HISTORY=1` ใน `env` ของขั้นตอน Backfill ชั่วคราว แล้วเอาออกหลังรันผ่าน
-- **ความปลอดภัยของ Toki:** `actions/checkout` ตั้ง `persist-credentials: false` และ Toki ถูกรันด้วย `env -i` (ไม่เห็น Token ใด ๆ ของ Job) ส่วน Token ถูกใส่ให้ git เฉพาะขั้นตอน Commit
-- **ดูวันที่ที่นับได้ใน Log:** ขั้นตอน Backfill พิมพ์ 5 รายการล่าสุดเป็น `เวลาดิบจาก Toki -> วันที่ที่นับ (Bangkok)` (ไม่พิมพ์ชื่อเรื่อง) ใช้ตรวจว่าวันถูกต้อง
-- **Pin Toki:** ตั้ง Repository variable `TOKI_COMMIT` เป็น SHA 40 ตัวอักษรของ nyawave/toki ที่ตรวจแล้ว (Settings → Secrets and variables → Actions → Variables) ถ้ายังไม่ตั้ง รอบรันจะแจ้ง `::warning::` พร้อม SHA ที่ใช้อยู่ให้คัดลอกไปตั้งค่า
-- Toki เป็น Unofficial Scraper และพึ่งพา HTML ของ MAL ถ้า MAL เปลี่ยนหน้าเว็บ, ปิดกั้น Runner หรือ Toki เปลี่ยนรูปแบบ response การดึงข้อมูลอาจล้มเหลว
-- Toki จะถูก Build ใหม่ทุกครั้งที่ Workflow ทำงาน โดยใช้ Go `1.27.4` (Toki ต้องการ Go 1.26 ขึ้นไป)
-- Workflow ใช้ 1 History Request ต่อรอบ (Anime)
-- Scheduled Workflow ใน Public Repository อาจถูกปิดอัตโนมัติเมื่อไม่มี Repository Activity เป็นเวลา 60 วัน หากหยุดทำงาน ให้เข้า Actions แล้วเปิดใช้งาน Workflow อีกครั้ง
-
-## แก้ปัญหาเบื้องต้น
-
-- **Workflow ล้มเหลวตอน Build Toki:** ตรวจสอบบันทึกขั้นตอน `Build Toki`; อาจเป็นการเปลี่ยนแปลง Go/Toki upstream
-- **JavaScript Test ไม่ผ่าน:** ดูชื่อ Test และข้อความ error ในขั้นตอน `Run JavaScript tests`
-- **Toki ตอบ HTTP 403:** MAL อาจปฏิเสธคำขอจาก GitHub Runner หรือโปรไฟล์/ประวัติไม่เปิดเป็นสาธารณะ
-- **Toki ตอบ HTTP 404:** ตรวจสอบ Username และการเข้าถึงหน้า Profile
-- **Toki ตอบ HTTP 429:** MAL จำกัดคำขอชั่วคราว ระบบจะรอ (ตาม `Retry-After` หรือ 30/60/90 วินาที) แล้วลองใหม่สูงสุด 4 ครั้งเอง หากยังไม่ผ่านให้รอสักระยะแล้ว Run workflow ใหม่
-- **จำนวน history rows เป็น 0:** อาจไม่มี Recent History ที่ยังมองเห็นได้ หรือ MAL เปลี่ยนหน้า History; ตรวจสอบหน้า <https://myanimelist.net/profile/TiMEZ4I3eth>
-- **Deploy Pages ไม่ผ่าน:** ตรวจสอบ Settings → Pages → Source ว่าเลือก GitHub Actions
-- **ไม่เห็นข้อมูลเก่ากว่า 21 วัน:** เป็นข้อจำกัดของ MAL ไม่ใช่ปัญหาของ Heatmap
-
-## เปลี่ยนบัญชี MAL
-
-แก้ Username ให้ตรงกันทั้ง 2 จุด:
-
-1. `MAL_USERNAME` ใน `.github/workflows/heatmap.yml`
-2. `username` ใน `data/state.json`
-
-ถ้าเปลี่ยนบัญชี แนะนำให้ล้าง `seen_events` และ `daily` ใน `data/state.json` ก่อนรันใหม่
-
-## แหล่งอ้างอิงและเอกสาร
-
-- Toki repository และวิธีรัน: <https://github.com/nyawave/toki>
+- Toki: <https://github.com/nyawave/toki>
 - Toki OpenAPI schema: <https://raw.githubusercontent.com/nyawave/toki/master/openapi.json>
-- คำอธิบายช่วงเวลาประวัติย้อนหลัง 3 สัปดาห์: <https://malheatmap.com/about>
+- คำอธิบายช่วงเวลาประวัติย้อนหลัง 3 สัปดาห์ของ MAL: <https://malheatmap.com/about>
+- GitHub REST API – Create a workflow dispatch event: <https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event>
+- cron-job.org: <https://cron-job.org>
