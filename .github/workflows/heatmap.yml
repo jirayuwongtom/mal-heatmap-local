@@ -17,24 +17,23 @@ on:
       - 'README.md'
       - '.gitignore'
 
+# Jobs grant only the permissions they need.
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: mal-heatmap-pages
   cancel-in-progress: false
 
 jobs:
-  collect-build-deploy:
+  build:
     # Manual dispatch from another branch must not publish an outdated site or push state to main.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: write
+      pages: read
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -101,8 +100,7 @@ jobs:
 
       - name: Start temporary Toki server
         run: |
-          # env -i: the third-party server gets an empty environment, so it cannot read the job's
-          # token variables (e.g. the OIDC request token that "id-token: write" adds).
+          # env -i keeps runner-injected GitHub Actions credentials out of the Toki server environment.
           env -i PATH="$PATH" HOME="$RUNNER_TEMP" HOST=127.0.0.1 PORT=3000 \
             "$RUNNER_TEMP/toki-server" > "$RUNNER_TEMP/toki.log" 2>&1 &
           for attempt in $(seq 1 30); do
@@ -157,8 +155,24 @@ jobs:
       - name: Upload static site
         uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages
           path: site
 
+  deploy:
+    # Deploy only after the build job has completed and uploaded its Pages artifact.
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages
