@@ -1,12 +1,12 @@
 name: Build MAL Contributions
 
 on:
-  # The primary trigger is the external cron-job (every 3 hours, calling workflow_dispatch).
-  # This schedule is only a low-frequency backup in case that cron-job stops. GitHub may delay or
-  # skip scheduled runs, and disables them after 60 days without repository activity, so it must
-  # not be the only trigger. Once a day at 02:15 Thailand time keeps backup requests low.
+  # Primary triggers: the external cron-job calls workflow_dispatch at 21:00, 00:00 and 06:00
+  # (Asia/Bangkok). This schedule adds its own runs at 12:00 and 18:00 (Asia/Bangkok), so the
+  # site updates at 00:00, 06:00, 12:00, 18:00 and 21:00 overall. GitHub may delay or skip
+  # scheduled runs, and disables them after 60 days without repository activity.
   schedule:
-    - cron: '15 2 * * *'
+    - cron: '0 12,18 * * *'
       timezone: 'Asia/Bangkok'
   workflow_dispatch:
   push:
